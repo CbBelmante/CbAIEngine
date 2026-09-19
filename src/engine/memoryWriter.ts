@@ -2,9 +2,9 @@
  * 🔧 memoryWriter — A porta ESTREITA por onde `save_memory` escreve
  *
  * A RLS de `ai_knowledge_entries` só deixa escrever quem tem `ai:update`
- * (021:317) — um CS comum não tem. A migration já previu o desvio: existe a
+ * ( — um usuário comum não tem. A migration já previu o desvio: existe a
  * policy `ai_knowledge_entries_service_role`, e o comentário do seed diz
- * "escrita pela tool save_memory via service_role" (021:257).
+ * "escrita pela tool save_memory via service_role" (.
  *
  * 🔴 Só que entregar um client service_role ao contexto das tools daria a
  * TODAS as 17 um bypass de RLS. Este arquivo é o contrário disso: uma função,

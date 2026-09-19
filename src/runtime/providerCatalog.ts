@@ -11,8 +11,8 @@
  * Groq, Together, DeepSeek ou um Ollama local é escolher `openai-compatible` e
  * informar a `base_url`. Nenhum `if` de fornecedor entra no caminho.
  *
- * ⚠️ **Client ADMIN.** `ai_providers` só é legível por `is_internal_staff()`
- * (`019_ai_config.sql`); com o client do caller, um não-interno leria zero
+ * ⚠️ **Client ADMIN.** `ai_providers` só é legível por the access control layer
+ * (the config migration); com o client do caller, um não-interno leria zero
  * linhas e cairia nas embutidas em silêncio.
  */
 
@@ -33,7 +33,7 @@ import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
  * O que o catálogo do banco produziu. `disabled` volta junto de propósito: sem
  * ela, apontar um agente para um provedor DESLIGADO produziria o mesmo
  * `Unknown provider` de um provedor inexistente — dois problemas diferentes com
- * a mesma mensagem, e o operador reabrindo a tela sem saber o que procurar.
+ * a mesma mensagem, e o administrador reabrindo a tela sem saber o que procurar.
  */
 export interface IProviderCatalog {
   registered: string[];

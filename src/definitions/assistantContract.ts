@@ -33,7 +33,7 @@ export function isAssistantScope(value: string): value is AssistantScope {
 // ============== COMPANY STAGES ==============
 
 /**
- * Estágios CS que as tools `list_companies` e `suggest_stage_change` declaram
+ * Estágios que as tools `list_companies` e `suggest_stage_change` declaram
  * ao modelo no `enum` do schema.
  *
  * Kernel duplicado de propósito: a camada rica é `definitions/clientConfig.ts`
@@ -112,7 +112,7 @@ export type CardInline =
 
 /**
  * `applied`/`dismissed`/`error` são estado do FRONT — o store os escreve depois
- * que o CS decide. A edge function nunca os emite, e é por isso que são
+ * que o usuário decide. A edge function nunca os emite, e é por isso que são
  * opcionais aqui em vez de morarem num tipo separado.
  */
 export type Suggestion =
@@ -172,7 +172,7 @@ export interface IAssistantResponse {
    * 🔴 NÃO é "buscou e não achou nada" — esse é estado legítimo e continua
    * mudo. Este campo existe porque a degradação do RAG é DESENHO
    * (`AI_KNOWLEDGE_ARCHITECTURE`: nunca derruba a conversa), e desenho que o
-   * operador não enxerga vira chave esquecida: o chat responde com cara de
+   * administrador não enxerga vira chave esquecida: o chat responde com cara de
    * certo, sem conhecimento nenhum, e o erro morre no log do servidor.
    *
    * Ausente no caminho feliz — quem não usa RAG não ganha campo novo.

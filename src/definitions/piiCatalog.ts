@@ -25,15 +25,15 @@
  * fora não é descuido:
  *
  * · **Nome de pessoa** — é dado pessoal pela letra da lei, e mesmo assim fica.
- *   O engine é CRM de RELACIONAMENTO: a conversa inteira é sobre gente nomeada,
- *   e redigir nome deixaria o agente incapaz de responder "o que o Roberto
+ *   O engine é application: a conversa inteira é sobre gente nomeada,
+ *   e redigir nome deixaria o agente incapaz de responder "o que o usuário
  *   pediu?". Some-se que detectar nome exige NER, não regex — qualquer
  *   heurística de palavra capitalizada comeria nome de empresa, de cidade e de
  *   produto. Falha os filtros 2 e 3.
  *
  * · **CNPJ** — é pessoa JURÍDICA (fora da LGPD) e público na Receita. Além
  *   disso é chave de negócio ativa: o próprio produto o injeta no contexto
- *   (`promptContext.ts`, linha `CNPJ: …`) e o CS pergunta por ele. Falha o
+ *   (`promptContext.ts`, linha `CNPJ: …`) e o usuário pergunta por ele. Falha o
  *   filtro 1, e redigi-lo seria perda de função com ganho zero.
  *
  * · **E-mail** — decisão do founder em 09/09/2026: pode trafegar. É a

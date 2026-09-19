@@ -14,11 +14,11 @@
  *      "nada cadastrado".
  *   2. `registerProvidersFromDb` — é o que faz a `base_url` da tela chegar ao
  *      registry; só com as embutidas, o provedor cadastrado não existe.
- *   3. A recusa por DESLIGADO — sem ela, quem o operador desligou vira AUSÊNCIA,
+ *   3. A recusa por DESLIGADO — sem ela, quem o administrador desligou vira AUSÊNCIA,
  *      a mesma mensagem de um provedor que nunca existiu.
  *
  * ⚠️ **Client ADMIN.** `ai_config` e `ai_providers` só são legíveis por
- * `is_internal_staff()` (`019_ai_config.sql`) e `ai_credentials` guarda segredo.
+ * the access control layer (the config migration) e `ai_credentials` guarda segredo.
  * Com o client do caller, um não-interno não acharia linha nenhuma (RLS) e a
  * chamada recusaria sem dizer que o problema é o client, não a config.
  */

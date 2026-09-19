@@ -58,28 +58,28 @@ export const INSIGHT_TYPES = [
   {
     value: 'risk',
     label: 'Risco',
-    labelKey: 'dossier.insights.type.risk',
+    labelKey: 'insights.type.risk',
     color: 'var(--red)',
     icon: 'lucide:alert-triangle',
   },
   {
     value: 'action',
     label: 'Ação',
-    labelKey: 'dossier.insights.type.action',
+    labelKey: 'insights.type.action',
     color: 'var(--warning-color-100)',
     icon: 'lucide:zap',
   },
   {
     value: 'rapport',
     label: 'Rapport',
-    labelKey: 'dossier.insights.type.rapport',
+    labelKey: 'insights.type.rapport',
     color: 'var(--blue-link)',
     icon: 'lucide:heart-handshake',
   },
   {
     value: 'praise',
     label: 'Elogio',
-    labelKey: 'dossier.insights.type.praise',
+    labelKey: 'insights.type.praise',
     color: 'var(--success-color-100)',
     icon: 'lucide:thumbs-up',
   },
@@ -99,17 +99,17 @@ export const INSIGHT_STATUSES = [
   {
     value: 'suggested',
     label: 'Sugerido',
-    labelKey: 'dossier.insights.status.suggested',
+    labelKey: 'insights.status.suggested',
   },
   {
     value: 'approved',
     label: 'Aprovado',
-    labelKey: 'dossier.insights.status.approved',
+    labelKey: 'insights.status.approved',
   },
   {
     value: 'dismissed',
     label: 'Descartado',
-    labelKey: 'dossier.insights.status.dismissed',
+    labelKey: 'insights.status.dismissed',
   },
 ] as const satisfies readonly IInsightStatusDef[];
 

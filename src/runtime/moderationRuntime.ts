@@ -47,7 +47,7 @@ registerModerationProvider(createCatalogModerationProvider());
  * contradiz a cascata que recusa em vez de assumir.
  *
  * 🔴 Com variável apontando para um `id` não registrado, `resolveModerationProvider`
- * lança `ConfigError`. Cair de volta no catálogo aqui daria ao operador um
+ * lança `ConfigError`. Cair de volta no catálogo aqui daria ao administrador um
  * guarda diferente do que ele pediu, em silêncio.
  */
 export function resolveConfiguredModerationProvider(): IModerationProvider {

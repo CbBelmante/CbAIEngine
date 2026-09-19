@@ -3,7 +3,7 @@
 
 /**
  * Dialetos de fio que o motor sabe falar — espelho do CHECK
- * `ai_providers_protocol_check` (`019_ai_config.sql`).
+ * `ai_providers_protocol_check` (the config migration).
  *
  * Protocolo NÃO é marca. `openai-compatible` atende OpenRouter, Groq, Together,
  * DeepSeek, vLLM ou um Ollama local trocando apenas a `base_url`: é por isso que

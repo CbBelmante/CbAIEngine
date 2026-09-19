@@ -22,15 +22,15 @@
 /**
  * 📌 Entra no catálogo o termo que satisfaz os TRÊS filtros ao mesmo tempo:
  *
- *   1. é **inequívoco no contexto de um CRM B2B** — não tem leitura legítima
- *      numa conversa de suporte, comercial ou operação;
+ *   1. é **inequívoco no contexto de um application** — não tem leitura legítima
+ *      numa conversa, comercial ou operação;
  *   2. é **expressão**, não palavra solta, sempre que a palavra solta tiver
  *      leitura inocente;
  *   3. bloqueá-lo é melhor do que deixá-lo passar — os dois erros custam, e
  *      não custam igual.
  *
  * O filtro 2 é o que segura o falso positivo, e ele é a regra mais importante
- * daqui: um guarda que barra o CS no meio do trabalho é um guarda que alguém
+ * daqui: um guarda que barra o usuário no meio do trabalho é um guarda que alguém
  * desliga — e aí não há guarda nenhum. Precisão vale mais que cobertura,
  * porque a cobertura tem um caminho de upgrade (um provider remoto ou um juiz
  * LLM registrado na porta) e a confiança perdida não tem.
@@ -160,7 +160,7 @@ export function buildModerationMessage(
  *
  * 📌 Predominam EXPRESSÕES de várias palavras, e isso é o filtro 2 do critério
  * em ação: `matar` sozinho aparece em "matar a charada" e em "isso vai matar o
- * prazo"; `quero me matar` não aparece em conversa de suporte.
+ * prazo"; `quero me matar` não aparece em conversa.
  *
  * ⚠️ `hate` é deliberadamente a lista mais curta. É a categoria em que a
  * palavra solta é mais ambígua em pt-BR e em que um classificador com contexto
@@ -234,7 +234,7 @@ export const MODERATION_TRACE_KEY = 'moderationBlock';
  */
 export const MODERATION_PROVIDER_ENV_KEY = 'CBAI_MODERATION_PROVIDER';
 
-/** O limiar, quando o operador quiser calibrar um provider que pontua. */
+/** O limiar, quando o administrador quiser calibrar um provider que pontua. */
 export const MODERATION_THRESHOLD_ENV_KEY = 'CBAI_MODERATION_THRESHOLD';
 
 // ============== THRESHOLD ==============

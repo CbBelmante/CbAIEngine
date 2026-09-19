@@ -26,7 +26,7 @@
  * jamais executa ação destrutiva sem card — por isso este texto é código sob
  * revisão, e não um campo que a tela edita.
  */
-export const ASSISTANT_BASE = `You are the Volan CbAIEngine assistant -- a B2B Customer Success platform.
+export const ASSISTANT_BASE = `You are an AI assistant. Adapt your behavior based on the context provided below.
 
 STYLE:
 - PT-BR direct, concise. No "great question!", no emojis.

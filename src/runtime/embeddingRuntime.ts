@@ -11,7 +11,7 @@
  * paralelo: embedding deixaria de ser configurável por empresa e uma empresa
  * em outro gateway receberia a chave errada, calada.
  *
- * ⚠️ **Client ADMIN.** `ai_config` só é legível por `is_internal_staff()` e
+ * ⚠️ **Client ADMIN.** `ai_config` só é legível por the access control layer e
  * `ai_credentials` guarda segredo — mesmo motivo do `agentRuntime.ts`.
  */
 

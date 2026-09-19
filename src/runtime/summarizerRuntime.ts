@@ -138,7 +138,7 @@ export async function resolveSummarizationPolicyFromConfig(
     return resolveSummarizationPolicy(config.params);
   } catch (error) {
     // 🔴 Duas coisas diferentes chegam aqui, e gritar `error` nas duas seria
-    // ruído que treina o operador a ignorar o log. `ConfigError` é "ninguém
+    // ruído que treina o administrador a ignorar o log. `ConfigError` é "ninguém
     // cadastrou o agente `summarize` ainda" — o estado DEFAULT do sistema hoje,
     // uma vez por turno, e nada quebrou: valem os defaults do catálogo. Qualquer
     // OUTRA falha (banco fora, schema errado) é problema de verdade e continua

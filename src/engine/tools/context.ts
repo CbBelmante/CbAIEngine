@@ -25,7 +25,7 @@ import type { IAiDbAdapter } from '../../dbAdapter/dbAdapter';
 // ============== CONSTANTS ==============
 
 export const INTERNAL_ONLY_MESSAGE =
-  'This tool is available to the Volan internal team only. Tell the user you cannot run it for them.';
+  'This tool is available to internal staff only. Tell the user you cannot run it for them.';
 
 /** Tabela onde cada chamada de tool vira uma linha de trilha. */
 export const TOOL_MESSAGES_TABLE = 'assistant_messages';
