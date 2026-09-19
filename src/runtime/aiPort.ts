@@ -77,7 +77,7 @@ export async function resolveAiPort(
 
   const catalog = await registerProvidersFromDb(engine);
 
-  const config = await resolveConfig({ agent, companyId: company, adapter: engine });
+  const config = await resolveConfig({ agent, companyId: company, dbAdapter: engine });
   const apiKey = await resolveApiKey({ provider: config.provider, companyId: company }, engine);
 
   assertProviderEnabled({ catalog, provider: config.provider });

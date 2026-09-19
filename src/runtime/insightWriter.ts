@@ -85,7 +85,7 @@ export interface IInsightOrigin {
 }
 
 export interface IWriteInsightsParams {
-  adapter: IAiDbAdapter;
+  dbAdapter: IAiDbAdapter;
   target: IInsightTarget;
   origin: IInsightOrigin;
   drafts: readonly IInsightDraft[];
@@ -187,7 +187,7 @@ function toInsightRow(
 // ============== PORTA ==============
 
 export async function writeInsights(
-  { adapter, target, origin, drafts }: IWriteInsightsParams,
+  { dbAdapter, target, origin, drafts }: IWriteInsightsParams,
 ): Promise<IWriteInsightsResult> {
   assertTarget({ target, origin });
 
@@ -207,7 +207,7 @@ export async function writeInsights(
     return { written: [], rejected };
   }
 
-  const written = await adapter.insertInsights(rows);
+  const written = await dbAdapter.insertInsights(rows);
   return { written, rejected };
 }
 
@@ -239,8 +239,8 @@ export async function writeInsights(
  * fila enquanto ela não venceu.
  */
 export async function hasInsightsFrom(
-  { adapter, origin, since }: {
-    adapter: IAiDbAdapter;
+  { dbAdapter, origin, since }: {
+    dbAdapter: IAiDbAdapter;
     origin: IInsightOrigin;
     /** Instante ISO a partir do qual a pergunta vale. Ausente = desde sempre. */
     since?: string | null;
@@ -248,7 +248,7 @@ export async function hasInsightsFrom(
 ): Promise<boolean> {
   if (!origin.sourceId) { return false; }
 
-  return adapter.hasInsightsFrom({
+  return dbAdapter.hasInsightsFrom({
     source: origin.source,
     sourceId: origin.sourceId,
     since,

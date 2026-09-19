@@ -38,7 +38,7 @@ export const KNOWLEDGE_BLOCK_HEADING =
 // ============== TYPES ==============
 
 export interface ICreateKnowledgeMiddlewareParams {
-  adapter: IAiDbAdapter;
+  dbAdapter: IAiDbAdapter;
   embedQuery(text: string): Promise<number[]>;
   topK?: number;
   similarityThreshold?: number;
@@ -108,7 +108,7 @@ export function createKnowledgeRetrievalMiddleware(
       try {
         const queryEmbedding = await params.embedQuery(query);
         const hits = await searchKnowledge({
-          adapter: params.adapter,
+          dbAdapter: params.dbAdapter,
           queryEmbedding,
           ...(params.topK !== undefined ? { topK: params.topK } : {}),
           ...(params.similarityThreshold !== undefined

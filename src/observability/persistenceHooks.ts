@@ -18,12 +18,13 @@ import {
 } from '../definitions/aiObservability';
 import type { IAgentHooks, IChatRequest, IToolOutput, NMessage, NResponse } from '../core/types';
 import { createRunRecorder, reportPersistenceFailure, type RunRecorder } from './runRecorder';
-import type { DbRow, IObservabilityDb } from './types';
+import type { DbRow } from './types';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== TYPES ==============
 
 export interface ICreatePersistenceHooksParams {
-  db: IObservabilityDb;
+  dbAdapter: IAiDbAdapter;
   /** O MESMO id que o motor recebe em `IAgentRunIdentity.id` — é ele que amarra invocações e steps. */
   runId: string;
   /** `IAgentPreset.name`, a mesma chave de `ai_config.agent`. */
@@ -269,10 +270,10 @@ async function handleError(
 // ============== FACTORY ==============
 
 export function createPersistenceHooks(params: ICreatePersistenceHooksParams): IAgentHooks {
-  const { db, runId, agent, provider, companyId, trigger, cronJobId } = params;
+  const { dbAdapter, runId, agent, provider, companyId, trigger, cronJobId } = params;
 
   const recorder = params.recorder ?? createRunRecorder({
-    db,
+    dbAdapter,
     runId,
     agent,
     provider,

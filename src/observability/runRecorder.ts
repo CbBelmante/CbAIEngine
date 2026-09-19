@@ -2,14 +2,13 @@
  * 🔧 runRecorder — As escritas de observabilidade, com falha VISÍVEL
  *
  * O motor engole exceção de hook para não derrubar o run (`emitHook`, fail-soft).
- * O efeito colateral é que uma escrita minha que falhe sumiria em silêncio — e o
+ * O efeito colateral é que uma escrita que falhe sumiria em silêncio — e o
  * registro se perderia sem ninguém saber. Por isso toda escrita passa por
  * `persistSafely`, que reporta o MOTIVO e segue: o run não cai, mas a falha não
  * fica invisível.
  */
 
 import {
-  OBSERVABILITY_TABLES,
   RUN_STATUSES,
   type RunStatus,
   type RunTrigger,
@@ -22,10 +21,9 @@ import {
   buildRunClosePatch,
   buildRunRow,
   buildStepRow,
-  buildWriteLabel,
   MISSING_PRICING_REASON,
 } from './rows';
-import type { DbRow, IDbResult, IObservabilityDb } from './types';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== CONSTANTS ==============
 
@@ -34,7 +32,7 @@ export const PERSISTENCE_ERROR_PREFIX = '[agent:observability]';
 // ============== TYPES ==============
 
 export interface IRunRecorderParams {
-  db: IObservabilityDb;
+  dbAdapter: IAiDbAdapter;
   runId: string;
   agent: string;
   provider: string;
@@ -46,14 +44,13 @@ export interface IRunRecorderParams {
 export interface IInvocationRecord {
   model: string;
   usage: NUsage;
-  /** Ausente só se `onModelResponse` chegar sem o `onModelCall` par — a coluna é nullable. */
   latencyMs?: number;
   toolCalls: number;
 }
 
 export interface IStepRecord {
   stepType: StepType;
-  payload: DbRow;
+  payload: Record<string, unknown>;
   durationMs?: number;
 }
 
@@ -65,15 +62,11 @@ export function reportPersistenceFailure(
   console.error(PERSISTENCE_ERROR_PREFIX, label, reason);
 }
 
-/** Cobre as DUAS formas de falha do PostgREST: exceção lançada e `{ error }` devolvido. */
 async function persistSafely(
-  { label, operation }: { label: string; operation: () => PromiseLike<IDbResult<unknown>> },
+  { label, operation }: { label: string; operation: () => Promise<void> },
 ): Promise<void> {
   try {
-    const { error } = await operation();
-    if (error) {
-      reportPersistenceFailure({ label, reason: error });
-    }
+    await operation();
   } catch (error) {
     reportPersistenceFailure({ label, reason: error });
   }
@@ -81,9 +74,8 @@ async function persistSafely(
 
 // ============== PRICING CACHE ==============
 
-/** Uma leitura de preço por modelo, não por invocação — o preço não muda no meio do run. */
 function createPricingResolver(
-  { db, provider }: { db: IObservabilityDb; provider: string },
+  { dbAdapter, provider }: { dbAdapter: IAiDbAdapter; provider: string },
 ): (model: string) => Promise<IModelPricing | null> {
   const byModel = new Map<string, IModelPricing | null>();
 
@@ -95,7 +87,7 @@ function createPricingResolver(
 
     let pricing: IModelPricing | null = null;
     try {
-      pricing = await fetchModelPricing({ db, provider, model });
+      pricing = await fetchModelPricing({ dbAdapter, provider, model });
       if (!pricing) {
         reportPersistenceFailure({
           label: `pricing:missing ${provider}/${model}`,
@@ -120,32 +112,23 @@ function createPricingResolver(
  * fechado como `error`.
  */
 export function createRunRecorder(params: IRunRecorderParams) {
-  const { db, runId, agent, provider, companyId, trigger, cronJobId } = params;
-  const resolvePricing = createPricingResolver({ db, provider });
+  const { dbAdapter, runId, agent, provider, companyId, trigger, cronJobId } = params;
+  const resolvePricing = createPricingResolver({ dbAdapter, provider });
   let seq = 0;
   let closed = false;
 
-  function writeRow(
-    { operation, table, row }: { operation: 'insert' | 'update'; table: string; row: DbRow },
-  ): Promise<void> {
-    const label = buildWriteLabel({ operation, table });
-    if (operation === 'insert') {
-      return persistSafely({ label, operation: () => db.from(table).insert(row) });
-    }
-    return persistSafely({ label, operation: () => db.from(table).update(row).eq('id', runId) });
-  }
-
   return {
     openRun(): Promise<void> {
-      const row = buildRunRow({
-        runId,
-        agent,
-        trigger,
-        companyId,
-        cronJobId,
-        status: RUN_STATUSES.RUNNING,
+      return persistSafely({
+        label: 'insert:ai_agent_runs',
+        operation: () => dbAdapter.openRun({
+          id: runId,
+          agent,
+          tenantId: companyId,
+          trigger,
+          status: RUN_STATUSES.RUNNING,
+        }).then(() => {}),
       });
-      return writeRow({ operation: 'insert', table: OBSERVABILITY_TABLES.RUNS, row });
     },
 
     closeRun({ status, error }: { status: RunStatus; error?: string }): Promise<void> {
@@ -153,8 +136,10 @@ export function createRunRecorder(params: IRunRecorderParams) {
         return Promise.resolve();
       }
       closed = true;
-      const row = buildRunClosePatch({ status, error });
-      return writeRow({ operation: 'update', table: OBSERVABILITY_TABLES.RUNS, row });
+      return persistSafely({
+        label: 'update:ai_agent_runs',
+        operation: () => dbAdapter.closeRun(runId, status, error),
+      });
     },
 
     async recordInvocation(record: IInvocationRecord): Promise<void> {
@@ -168,7 +153,20 @@ export function createRunRecorder(params: IRunRecorderParams) {
         latencyMs: record.latencyMs,
         toolCalls: record.toolCalls,
       });
-      await writeRow({ operation: 'insert', table: OBSERVABILITY_TABLES.INVOCATIONS, row });
+      await persistSafely({
+        label: 'insert:ai_invocations',
+        operation: () => dbAdapter.recordInvocation({
+          runId,
+          provider,
+          model: record.model,
+          promptTokens: record.usage.promptTokens,
+          completionTokens: record.usage.completionTokens,
+          totalTokens: record.usage.totalTokens,
+          costUsd: row['cost_usd'] as number | null,
+          latencyMs: record.latencyMs ?? null,
+          toolCalls: record.toolCalls,
+        }),
+      });
     },
 
     recordStep(record: IStepRecord): Promise<void> {
@@ -180,7 +178,16 @@ export function createRunRecorder(params: IRunRecorderParams) {
         payload: record.payload,
         durationMs: record.durationMs,
       });
-      return writeRow({ operation: 'insert', table: OBSERVABILITY_TABLES.STEPS, row });
+      return persistSafely({
+        label: 'insert:ai_run_steps',
+        operation: () => dbAdapter.recordStep({
+          runId,
+          seq,
+          stepType: record.stepType,
+          payload: row['payload'] as Record<string, unknown> | null,
+          durationMs: record.durationMs ?? null,
+        }),
+      });
     },
 
     isClosed(): boolean {

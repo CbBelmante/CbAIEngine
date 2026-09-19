@@ -21,7 +21,6 @@ import { createPersistenceHooks } from '../observability/persistenceHooks';
 import { createRunRecorder } from '../observability/runRecorder';
 import type { RunRecorder } from '../observability/runRecorder';
 import { RUN_TRIGGERS } from '../definitions/aiObservability';
-import type { IObservabilityDb } from '../observability/types';
 import type { RunTrigger } from '../definitions/aiObservability';
 import type { IAgentHooks, IAgentPreset, IMiddleware, IToolDef } from '../core/types';
 
@@ -35,7 +34,7 @@ export interface IBuildAgentRuntimeParams {
    */
   agent: string;
   admin: IAiDbAdapter;
-  observabilityDb: IObservabilityDb;
+  dbAdapter: IAiDbAdapter;
   runId: string;
   companyId: string | null;
   tools?: IToolDef[];
@@ -101,7 +100,7 @@ export async function buildAgentRuntime(
   // trace pelo mesmo contador de `seq`, e é ele que o `stepSink` entrega a um
   // middleware que precise gravar passo próprio.
   const recorder = createRunRecorder({
-    db: params.observabilityDb,
+    dbAdapter: params.dbAdapter,
     runId: params.runId,
     agent: params.agent,
     provider: config.provider,
@@ -110,7 +109,7 @@ export async function buildAgentRuntime(
   });
 
   const hooks = createPersistenceHooks({
-    db: params.observabilityDb,
+    dbAdapter: params.dbAdapter,
     runId: params.runId,
     agent: params.agent,
     provider: config.provider,

@@ -41,8 +41,8 @@ export interface IProviderCatalog {
 }
 
 /**
- * Protocolo → adapter. É o mapa inteiro da escolha de porta: o `protocol` da
- * linha do banco entra aqui e sai um adapter. O CHECK da 019 fecha a coluna
+ * Protocolo → dbAdapter. É o mapa inteiro da escolha de porta: o `protocol` da
+ * linha do banco entra aqui e sai um dbAdapter. O CHECK da 019 fecha a coluna
  * nestes dois valores, então uma linha do banco nunca cai fora do mapa.
  */
 const ADAPTER_BY_PROTOCOL: Record<AiProtocol, IProviderAdapter> = {
@@ -92,13 +92,13 @@ function envKeyFor(slug: string): string {
  * que já funcionava — nunca para nenhum provider.
  */
 export async function registerProvidersFromDb(
-  adapter: IAiDbAdapter,
+  dbAdapter: IAiDbAdapter,
 ): Promise<IProviderCatalog> {
   registerBuiltInProviders();
 
   let allProviders;
   try {
-    allProviders = await adapter.listAllProviders();
+    allProviders = await dbAdapter.listAllProviders();
   } catch (err) {
     console.warn(
       '[ai:providers] catálogo indisponível, usando apenas as embutidas',

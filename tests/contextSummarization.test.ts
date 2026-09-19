@@ -43,10 +43,8 @@ import {
 } from '../src/definitions/contextSummarization';
 import { createDeferredStepSink } from '../src/observability/stepSink';
 import { createRunRecorder } from '../src/observability/runRecorder';
-import type {
-  DbRow,
-  IObservabilityDb,
-} from '../src/observability/types';
+import type { DbRow } from '../src/observability/types';
+import type { IAiDbAdapter } from '../src/dbAdapter/dbAdapter';
 import { RUN_TRIGGERS } from '../src/definitions/aiObservability';
 import { runAgentLoop } from '../src/core/loop';
 import type {
@@ -60,26 +58,29 @@ import type {
 
 // ============== DUBLÊS ==============
 
-/** Um banco em memória: guarda as linhas que o recorder escreveria. */
-function memoryDb(): { db: IObservabilityDb; rows: DbRow[] } {
+/** Mock de IAiDbAdapter que guarda as linhas que o recorder escreveria. */
+function memoryDb(): { db: IAiDbAdapter; rows: DbRow[] } {
   const rows: DbRow[] = [];
-  const table = {
-    insert: (values: DbRow) => {
-      rows.push(values);
-      return Promise.resolve({ data: null, error: null });
-    },
-    update: () => ({
-      eq: () => ({ eq: () => ({}), maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
-      maybeSingle: () => Promise.resolve({ data: null, error: null }),
-      then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null }),
-    }),
-    select: () => ({
-      eq: () => ({}),
-      maybeSingle: () => Promise.resolve({ data: null, error: null }),
-      then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null }),
-    }),
+  const db: IAiDbAdapter = {
+    getConfig: async () => null,
+    getCredential: async () => null,
+    listProviders: async () => [],
+    listAllProviders: async () => [],
+    getProvider: async () => null,
+    openRun: async (run) => { rows.push(run as unknown as DbRow); return run.id ?? 'run-1'; },
+    closeRun: async (_id, status, error) => { rows.push({ status, error } as unknown as DbRow); },
+    recordInvocation: async (inv) => { rows.push(inv as unknown as DbRow); },
+    recordStep: async (step) => { rows.push(step as unknown as DbRow); },
+    getModelPricing: async () => null,
+    getConsumptionStatus: async () => null,
+    searchKnowledge: async () => [],
+    getKnowledgeCategoryBySlug: async () => null,
+    insertKnowledgeEntry: async () => null,
+    insertInsights: async () => [],
+    hasInsightsFrom: async () => false,
+    recordToolMessage: async () => {},
   };
-  return { db: { from: () => table } as unknown as IObservabilityDb, rows };
+  return { db, rows };
 }
 
 function stepsOf(rows: DbRow[]): DbRow[] {
@@ -91,7 +92,7 @@ function tracedSink(): { record: ReturnType<typeof createDeferredStepSink>['reco
   const { db, rows } = memoryDb();
   const sink = createDeferredStepSink();
   sink.attach(createRunRecorder({
-    db,
+    dbAdapter: db,
     runId: 'run-1',
     agent: 'assistant',
     provider: 'test',

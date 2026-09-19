@@ -61,7 +61,7 @@ export function createAssistantCollector(): IAssistantCollector {
 // ============== CONTEXT ==============
 
 export interface IAssistantToolContext extends IToolContext {
-  adapter: IAiDbAdapter;
+  dbAdapter: IAiDbAdapter;
   threadId: string;
   isInternal: boolean;
   collector: IAssistantCollector;
@@ -143,7 +143,7 @@ async function recordToolMessage(
   },
 ): Promise<void> {
   try {
-    await context.adapter.recordToolMessage({
+    await context.dbAdapter.recordToolMessage({
       threadId: context.threadId,
       role: 'tool',
       content: null,

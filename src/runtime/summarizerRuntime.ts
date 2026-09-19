@@ -133,7 +133,7 @@ export async function resolveSummarizationPolicyFromConfig(
     const config = await resolveConfig({
       agent: AI_AGENTS.SUMMARIZE,
       ...(companyId ? { companyId } : {}),
-      adapter: admin,
+      dbAdapter: admin,
     });
     return resolveSummarizationPolicy(config.params);
   } catch (error) {

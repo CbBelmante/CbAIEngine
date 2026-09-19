@@ -214,7 +214,7 @@ function makeMemoryStub(): IMemoryStub {
 it('pii: caminho 2 — save_memory grava o conteúdo JÁ REDIGIDO', async () => {
   const stub = makeMemoryStub();
   const writer = createMemoryWriter({
-    adapter: stub.db,
+    dbAdapter: stub.db,
     isInternal: true,
     companyId: 'company-1',
     userId: 'user-1',
@@ -235,7 +235,7 @@ it('pii: caminho 2 — save_memory grava o conteúdo JÁ REDIGIDO', async () => 
 it('pii: caminho 2 — conteúdo legítimo é gravado intacto', async () => {
   const stub = makeMemoryStub();
   const writer = createMemoryWriter({
-    adapter: stub.db,
+    dbAdapter: stub.db,
     isInternal: true,
     companyId: 'company-1',
     userId: 'user-1',

@@ -3,45 +3,34 @@
  *
  * O motor entrega tokens crus e deixa `costUsd: null`; a conversão em dólar sai
  * daqui. Sem linha de preço cadastrada o custo continua `null`: `ai_model_pricing`
- * nasce VAZIA (019_ai_config.sql declara "SEM SEED"), e estimar um número seria
- * pior que a ausência — o consumo por empresa é somado desta coluna.
+ * nasce VAZIA, e estimar um número seria pior que a ausência — o consumo por
+ * empresa é somado desta coluna.
  */
 
 import {
   COST_DECIMAL_PLACES,
-  OBSERVABILITY_TABLES,
   TOKENS_PER_PRICING_UNIT,
 } from '../definitions/aiObservability';
 import type { IModelPricing, NUsage } from '../core/types';
-import type { IObservabilityDb } from './types';
-
-// ============== CONSTANTS ==============
-
-const PRICING_COLUMNS = 'input_per_1k, output_per_1k';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== LOOKUP ==============
 
 /**
- * Busca o preço de `(provider, model)`. Devolve `null` quando não há linha ativa
- * — o caso normal hoje, já que a tabela nasce sem seed.
+ * Busca o preço de `(provider, model)` via dbAdapter. Devolve `null` quando não
+ * há preço cadastrado — o caso normal, já que a tabela nasce sem seed.
  */
 export async function fetchModelPricing(
-  { db, provider, model }: { db: IObservabilityDb; provider: string; model: string },
+  { dbAdapter, provider, model }: { dbAdapter: IAiDbAdapter; provider: string; model: string },
 ): Promise<IModelPricing | null> {
-  const { data } = await db
-    .from(OBSERVABILITY_TABLES.PRICING)
-    .select(PRICING_COLUMNS)
-    .eq('provider', provider)
-    .eq('model', model)
-    .eq('active', true)
-    .maybeSingle();
+  const data = await dbAdapter.getModelPricing(provider, model);
 
   if (!data) {
     return null;
   }
 
-  const inputPer1k = toFiniteNumber(data['input_per_1k']);
-  const outputPer1k = toFiniteNumber(data['output_per_1k']);
+  const inputPer1k = toFiniteNumber(data.inputPer1k);
+  const outputPer1k = toFiniteNumber(data.outputPer1k);
   if (inputPer1k === null || outputPer1k === null) {
     return null;
   }
@@ -75,7 +64,6 @@ export function calculateCostUsd(
 
 // ============== HELPERS ==============
 
-/** `numeric` do PostgREST chega como `number` ou `string` conforme o driver. */
 function toFiniteNumber(value: unknown): number | null {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;

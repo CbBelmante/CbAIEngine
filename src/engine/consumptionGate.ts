@@ -39,7 +39,7 @@ export interface IConsumptionStatus {
 }
 
 export interface IAssertWithinLimitParams {
-  adapter: IAiDbAdapter;
+  dbAdapter: IAiDbAdapter;
   companyId: string | null;
 }
 
@@ -67,13 +67,13 @@ export class AiLimitReachedError extends Error {
 
 /** Lança `AiLimitReachedError` no bloqueio; alerta e segue no aviso. Fail-open na falha da RPC (ver comment do arquivo). */
 export async function assertWithinMonthlyLimit(
-  { adapter, companyId }: IAssertWithinLimitParams,
+  { dbAdapter, companyId }: IAssertWithinLimitParams,
 ): Promise<IConsumptionStatus | null> {
   if (!companyId) { return null; }
 
   let status;
   try {
-    status = await adapter.getConsumptionStatus(companyId);
+    status = await dbAdapter.getConsumptionStatus(companyId);
   } catch (err) {
     console.warn('[ai:limit] status unavailable, proceeding', err instanceof Error ? err.message : 'unknown');
     return null;

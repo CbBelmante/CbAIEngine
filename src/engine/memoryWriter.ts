@@ -50,7 +50,7 @@ export interface IMemoryWriter {
 }
 
 export interface ICreateMemoryWriterParams {
-  adapter: IAiDbAdapter;
+  dbAdapter: IAiDbAdapter;
   isInternal: boolean;
   companyId: string | null;
   userId: string;
@@ -66,7 +66,7 @@ export interface ICreateMemoryWriterParams {
  * salvar responda no tempo de um insert, e nunca no tempo do modelo.
  */
 export function createMemoryWriter(
-  { adapter, isInternal, companyId, userId, dispatchEmbedding }: ICreateMemoryWriterParams,
+  { dbAdapter, isInternal, companyId, userId, dispatchEmbedding }: ICreateMemoryWriterParams,
 ): IMemoryWriter {
   const visibility = isInternal ? KNOWLEDGE_VISIBILITY.INTERNAL : KNOWLEDGE_VISIBILITY.PORTAL;
 
@@ -77,11 +77,11 @@ export function createMemoryWriter(
       const title = redactText(params.title).text;
       const content = redactText(params.content).text;
 
-      const category = await adapter.getKnowledgeCategoryBySlug(AGENT_MEMORIES_SLUG);
+      const category = await dbAdapter.getKnowledgeCategoryBySlug(AGENT_MEMORIES_SLUG);
       if (!category?.id) { return { error: MEMORY_CATEGORY_MISSING }; }
 
       try {
-        const created = await adapter.insertKnowledgeEntry({
+        const created = await dbAdapter.insertKnowledgeEntry({
           categoryId: category.id,
           title,
           content,

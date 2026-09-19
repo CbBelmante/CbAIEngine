@@ -18,7 +18,7 @@ import type { IAiKnowledgeHit } from '../dbAdapter/types';
 // ============== TYPES ==============
 
 export interface ISearchKnowledgeParams {
-  adapter: IAiDbAdapter;
+  dbAdapter: IAiDbAdapter;
   queryEmbedding: number[];
   topK?: number;
   similarityThreshold?: number;
@@ -28,9 +28,9 @@ export interface ISearchKnowledgeParams {
 // ============== SEARCH ==============
 
 export async function searchKnowledge(
-  { adapter, queryEmbedding, topK, similarityThreshold, priorityWeight }: ISearchKnowledgeParams,
+  { dbAdapter, queryEmbedding, topK, similarityThreshold, priorityWeight }: ISearchKnowledgeParams,
 ): Promise<IAiKnowledgeHit[]> {
-  return adapter.searchKnowledge({
+  return dbAdapter.searchKnowledge({
     queryEmbedding,
     topK: topK ?? RAG_DEFAULTS.top_k,
     similarityThreshold: similarityThreshold ?? RAG_DEFAULTS.similarity_threshold,

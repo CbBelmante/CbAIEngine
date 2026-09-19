@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 /**
  * 🔧 agent-config — Testes do registry + cascata de credencial/config
  */
@@ -296,7 +295,7 @@ describe('resolveConfig — respeita o adapter', () => {
       getConsumptionStatus: async () => null,
     };
 
-    const config = await resolveConfig({ agent: 'assistant', adapter });
+    const config = await resolveConfig({ agent: 'assistant', dbAdapter: adapter });
     expect(config.provider).toBe('anthropic');
   });
 
@@ -319,7 +318,7 @@ describe('resolveConfig — respeita o adapter', () => {
       getConsumptionStatus: async () => null,
     };
 
-    const config = await resolveConfig({ agent: 'assistant', adapter });
+    const config = await resolveConfig({ agent: 'assistant', dbAdapter: adapter });
     expect(config.provider).toBe('ai-gateway');
     expect(calls).toContain('assistant');
     expect(calls).toContain('default');
@@ -361,7 +360,7 @@ describe('resolveConfig — cascata REAL até o catch-all "default"', () => {
   it('📌 sem linha do agente pedido, cai no catch-all "default" e RESOLVE — não recusa', async () => {
     const adapter = makeMockAdapter({ default: { provider: 'ai-gateway', model: 'catch-all-model' } });
 
-    const config = await resolveConfig({ agent: 'assistant', adapter });
+    const config = await resolveConfig({ agent: 'assistant', dbAdapter: adapter });
 
     expect(config.provider).toBe('ai-gateway');
     expect(config.model).toBe('catch-all-model');
@@ -373,7 +372,7 @@ describe('resolveConfig — cascata REAL até o catch-all "default"', () => {
       default: { provider: 'ai-gateway', model: 'catch-all-model' },
     });
 
-    const config = await resolveConfig({ agent: 'assistant', adapter });
+    const config = await resolveConfig({ agent: 'assistant', dbAdapter: adapter });
 
     expect(config.model).toBe('own-model');
   });
@@ -381,14 +380,14 @@ describe('resolveConfig — cascata REAL até o catch-all "default"', () => {
   it('📌 nem o agente nem "default" cadastrados → ConfigError, sem fallback nenhum', async () => {
     const adapter = makeMockAdapter({});
 
-    await expect(resolveConfig({ agent: 'assistant', adapter }))
+    await expect(resolveConfig({ agent: 'assistant', dbAdapter: adapter }))
       .rejects.toThrow(/No config found/);
   });
 
   it('o próprio agente "default" sem linha não consulta a si mesmo de novo — sem loop', async () => {
     const adapter = makeMockAdapter({});
 
-    await expect(resolveConfig({ agent: 'default', adapter }))
+    await expect(resolveConfig({ agent: 'default', dbAdapter: adapter }))
       .rejects.toThrow(/No config found/);
   });
 });

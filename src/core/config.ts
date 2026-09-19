@@ -58,13 +58,13 @@ export function mergeParams(
  * Se nenhum nível resolve: ConfigError.
  */
 export async function resolveConfig(
-  { agent, companyId, adapter }: {
+  { agent, companyId, dbAdapter }: {
     agent: string;
     companyId?: string;
-    adapter: IAiDbAdapter;
+    dbAdapter: IAiDbAdapter;
   },
 ): Promise<IResolvedConfig> {
-  const config = await adapter.getConfig(agent, companyId);
+  const config = await dbAdapter.getConfig(agent, companyId);
 
   if (config) {
     return {
@@ -76,7 +76,7 @@ export async function resolveConfig(
 
   // Fallback: agente 'default' — só quando `agent` não é 'default'
   if (agent !== AI_AGENTS.DEFAULT) {
-    const fallback = await adapter.getConfig(AI_AGENTS.DEFAULT, null);
+    const fallback = await dbAdapter.getConfig(AI_AGENTS.DEFAULT, null);
     if (fallback) {
       return {
         provider: fallback.provider,
@@ -103,9 +103,9 @@ export async function resolveConfig(
  */
 export async function resolveApiKey(
   { provider, companyId }: IResolveApiKeyParams,
-  adapter: IAiDbAdapter,
+  dbAdapter: IAiDbAdapter,
 ): Promise<string> {
-  const credential = await adapter.getCredential(provider, companyId);
+  const credential = await dbAdapter.getCredential(provider, companyId);
 
   if (credential?.apiKey) {
     return credential.apiKey;
