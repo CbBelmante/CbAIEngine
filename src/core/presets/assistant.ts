@@ -1,17 +1,12 @@
 /**
- * 🔧 assistant — Preset do assistente do CbAIEngine
+ * 🔧 assistant — Preset padrão do assistente
  *
- * `name` é `'assistant'` de propósito: é a MESMA string de `ai_config.agent`
- * (migration 019), a chave por onde `resolveConfig` acha provider e modelo. Uma
- * segunda grafia aqui — "cs", "engine-cs" — criaria uma tradução implícita entre
- * preset e banco, e tradução implícita quebra calada.
+ * `name` é `'assistant'` — a MESMA string de `ai_config.agent`, a chave por
+ * onde `resolveConfig` acha provider e modelo. Uma segunda grafia criaria uma
+ * tradução implícita entre preset e banco, e tradução implícita quebra calada.
  *
- * O agente não é de CS: quando a empresa ainda é lead, o próprio contexto o
- * instrui a agir como vendedor ("You are a salesperson in this context, not
- * CS"). Ele é o assistente, e troca de postura conforme o estágio.
- *
- * Aqui mora só a ESTRUTURA — quais sections, sob que condição, em que ordem. O
- * texto é `definitions/assistantPrompt.ts`. Modelo e provider não moram em
+ * Aqui mora só a ESTRUTURA — quais sections, sob que condição, em que ordem.
+ * O texto é `definitions/assistantPrompt.ts`. Modelo e provider não moram em
  * preset nenhum: quem escolhe é a config.
  */
 
@@ -154,7 +149,7 @@ export const ASSISTANT_SECTIONS: IPromptSection[] = [
 
 export const assistantPreset = defineAgentPreset({
   name: 'assistant',
-  description: 'Assistente do CbAIEngine — CS quando a empresa é cliente, comercial quando é lead',
+  description: 'Assistente padrão — adapta postura conforme o contexto da empresa',
   systemPrompt: { base: ASSISTANT_BASE, sections: ASSISTANT_SECTIONS },
   defaults: { maxTokens: ASSISTANT_MAX_TOKENS, maxToolLoops: ASSISTANT_MAX_TOOL_LOOPS },
 });
