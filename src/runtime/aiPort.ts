@@ -29,7 +29,7 @@ import type { IResolvedConfig } from '../core/config';
 import { ConfigError, resolveProvider } from '../providers/registry';
 import type { IRegisteredProvider } from '../providers/registry';
 import { registerProvidersFromDb } from './providerCatalog';
-import type { IProviderCatalog, IProviderCatalogDb } from './providerCatalog';
+import type { IProviderCatalog } from './providerCatalog';
 
 // ============== CONSTANTS ==============
 
@@ -70,15 +70,12 @@ export interface IAiPort {
 export async function resolveAiPort(
   { admin, agent, companyId }: IResolveAiPortParams,
 ): Promise<IAiPort> {
-  // `.schema()` troca o tipo (deixa de ser `IAiDbAdapter`), e os três
-  // consumidores só usam `.from().select().eq().is().maybeSingle()` — o cast é o
-  // mesmo que `registerProvidersFromDb` já fazia pro `admin` cru.
   const engine = admin;
   // Uma vez só: `null` é ausência de empresa e `undefined` é o que a cascata
   // espera. Reconverter em cada chamada é onde um dos lados acaba divergindo.
   const company = companyId ?? undefined;
 
-  const catalog = await registerProvidersFromDb(engine as unknown as IProviderCatalogDb);
+  const catalog = await registerProvidersFromDb(engine);
 
   const config = await resolveConfig({ agent, companyId: company, adapter: engine });
   const apiKey = await resolveApiKey({ provider: config.provider, companyId: company }, engine);

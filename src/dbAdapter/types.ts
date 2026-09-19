@@ -54,6 +54,53 @@ export interface IAiConsumptionStatus {
   percent: number;
 }
 
+// ============== KNOWLEDGE / RAG ==============
+
+export interface IAiKnowledgeHit {
+  entryId: string;
+  categoryId: string;
+  title: string;
+  content: string;
+  similarity: number;
+  combinedScore: number;
+}
+
+export interface IAiKnowledgeSearchParams {
+  queryEmbedding: number[];
+  topK?: number;
+  similarityThreshold?: number;
+  priorityWeight?: number;
+}
+
+export interface IAiKnowledgeEntryInput {
+  categoryId: string;
+  title: string;
+  content: string;
+  visibility: string;
+  companyId: string | null;
+  syncStatus: string;
+  createdBy: string;
+}
+
+// ============== INSIGHTS ==============
+
+export interface IAiInsightOrigin {
+  source: string;
+  sourceId: string;
+  since?: string | null;
+}
+
+// ============== TOOL MESSAGES ==============
+
+export interface IAiToolMessageInput {
+  threadId: string;
+  role: string;
+  content: string | null;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  toolResult: unknown;
+}
+
 // ============== OBSERVABILITY RECORDS ==============
 
 export interface IAiRunInput {

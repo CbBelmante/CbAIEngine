@@ -14,14 +14,12 @@
 
 import {
   AGENT_MEMORIES_SLUG,
-  KNOWLEDGE_CATEGORIES_TABLE,
-  KNOWLEDGE_ENTRIES_TABLE,
   KNOWLEDGE_SYNC_STATUS,
   KNOWLEDGE_VISIBILITY,
 } from '../definitions/knowledgeConfig';
 import { redactText } from '../middleware/piiRedaction';
 import type { EmbedDispatcher } from '../runtime/embedDispatch';
-import type { ICbAIEngineDb } from './tools/db';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== CONSTANTS ==============
 
@@ -52,9 +50,7 @@ export interface IMemoryWriter {
 }
 
 export interface ICreateMemoryWriterParams {
-  /** Client ADMIN — a RLS de escrita exige `ai:update`, que o CS não tem. */
-  admin: ICbAIEngineDb;
-  /** `is_internal_staff()` do turno. Decide a visibilidade da memória. */
+  adapter: IAiDbAdapter;
   isInternal: boolean;
   companyId: string | null;
   userId: string;
@@ -70,7 +66,7 @@ export interface ICreateMemoryWriterParams {
  * salvar responda no tempo de um insert, e nunca no tempo do modelo.
  */
 export function createMemoryWriter(
-  { admin, isInternal, companyId, userId, dispatchEmbedding }: ICreateMemoryWriterParams,
+  { adapter, isInternal, companyId, userId, dispatchEmbedding }: ICreateMemoryWriterParams,
 ): IMemoryWriter {
   const visibility = isInternal ? KNOWLEDGE_VISIBILITY.INTERNAL : KNOWLEDGE_VISIBILITY.PORTAL;
 
@@ -78,40 +74,30 @@ export function createMemoryWriter(
     async save(params: ISaveMemoryParams): Promise<ISaveMemoryResult> {
       if (!isInternal && !companyId) { return { error: MEMORY_PORTAL_REQUIRES_COMPANY }; }
 
-      // 🔴 A base de conhecimento é PERMANENTE: o que entra aqui volta em toda
-      // sessão futura pela `ai_knowledge_search`. O middleware `pre-model` já
-      // redige o que o modelo VÊ, mas esta porta atende qualquer chamador —
-      // cron, outro preset, o assistente do cliente (#16) — e nenhum deles
-      // carrega aquela cadeia. Redigir aqui é o que impede a exposição de
-      // virar registro.
       const title = redactText(params.title).text;
       const content = redactText(params.content).text;
 
-      const { data: category } = await admin.from(KNOWLEDGE_CATEGORIES_TABLE)
-        .select<{ id: string }>('id')
-        .eq('slug', AGENT_MEMORIES_SLUG)
-        .maybeSingle();
-
+      const category = await adapter.getKnowledgeCategoryBySlug(AGENT_MEMORIES_SLUG);
       if (!category?.id) { return { error: MEMORY_CATEGORY_MISSING }; }
 
-      const { data: created, error } = await admin.from(KNOWLEDGE_ENTRIES_TABLE)
-        .insert<{ id: string }>({
-          category_id: category.id,
+      try {
+        const created = await adapter.insertKnowledgeEntry({
+          categoryId: category.id,
           title,
           content,
-          // Carimbados da sessão — o schema da tool nem expõe os dois campos.
           visibility,
-          company_id: companyId,
-          sync_status: KNOWLEDGE_SYNC_STATUS.PENDING,
-          created_by: userId,
-        })
-        .select('id')
-        .single();
+          companyId,
+          syncStatus: KNOWLEDGE_SYNC_STATUS.PENDING,
+          createdBy: userId,
+        });
 
-      if (error || !created) { return { error: error?.message ?? 'insert failed' }; }
+        if (!created) { return { error: 'insert failed' }; }
 
-      dispatchEmbedding([created.id]);
-      return { id: created.id };
+        dispatchEmbedding([created.id]);
+        return { id: created.id };
+      } catch (err) {
+        return { error: err instanceof Error ? err.message : 'insert failed' };
+      }
     },
   };
 }

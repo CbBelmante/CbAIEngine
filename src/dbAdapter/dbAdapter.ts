@@ -21,6 +21,11 @@ import type {
   IAiRunInput,
   IAiInvocationInput,
   IAiStepInput,
+  IAiKnowledgeHit,
+  IAiKnowledgeSearchParams,
+  IAiKnowledgeEntryInput,
+  IAiInsightOrigin,
+  IAiToolMessageInput,
 } from './types';
 
 // ============== INTERFACE ==============
@@ -35,8 +40,10 @@ export interface IAiDbAdapter {
   getCredential(provider: string, tenantId?: string | null): Promise<IAiCredentialResult | null>;
 
   // ── Providers ───────────────────────────────────────────────────────────
-  /** Lista todos os providers ativos e habilitados. */
+  /** Lista providers ativos e habilitados. */
   listProviders(): Promise<IAiProvider[]>;
+  /** Lista TODOS os providers (inclusive disabled/inactive). Necessário para o providerCatalog montar a lista de recusados. */
+  listAllProviders(): Promise<IAiProvider[]>;
   /** Busca um provider pelo slug. */
   getProvider(slug: string): Promise<IAiProvider | null>;
 
@@ -57,4 +64,22 @@ export interface IAiDbAdapter {
   // ── Quota ───────────────────────────────────────────────────────────────
   /** Status de consumo do tenant. null = sem tenant ou sem limite. */
   getConsumptionStatus(tenantId: string): Promise<IAiConsumptionStatus | null>;
+
+  // ── Knowledge / RAG ─────────────────────────────────────────────────────
+  /** Busca vetorial. Roda com RLS do caller, não admin. */
+  searchKnowledge(params: IAiKnowledgeSearchParams): Promise<IAiKnowledgeHit[]>;
+  /** Busca categoria de conhecimento pelo slug. */
+  getKnowledgeCategoryBySlug(slug: string): Promise<{ id: string } | null>;
+  /** Insere entrada de conhecimento. Retorna id criado. */
+  insertKnowledgeEntry(entry: IAiKnowledgeEntryInput): Promise<{ id: string } | null>;
+
+  // ── Insights ────────────────────────────────────────────────────────────
+  /** Insere insights em lote. Retorna ids inseridos. */
+  insertInsights(rows: Array<Record<string, unknown>>): Promise<string[]>;
+  /** Verifica se já existem insights desta origem (dedup). */
+  hasInsightsFrom(origin: IAiInsightOrigin): Promise<boolean>;
+
+  // ── Tool messages ───────────────────────────────────────────────────────
+  /** Grava mensagem de tool (fail-soft). */
+  recordToolMessage(message: IAiToolMessageInput): Promise<void>;
 }

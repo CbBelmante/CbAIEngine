@@ -27,6 +27,7 @@
  */
 
 import { AI_LIMIT_THRESHOLDS } from '../definitions/aiConfig';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== TYPES ==============
 
@@ -37,22 +38,13 @@ export interface IConsumptionStatus {
   percent: number | null;
 }
 
-/** Superfície mínima: só a RPC. O client é injetado para o teste não pedir banco. */
-export interface IConsumptionDb {
-  rpc(name: string, params: Record<string, unknown>): PromiseLike<{
-    data: IConsumptionStatus | null;
-    error: { message: string } | null;
-  }>;
-}
-
 export interface IAssertWithinLimitParams {
-  admin: IConsumptionDb;
+  adapter: IAiDbAdapter;
   companyId: string | null;
 }
 
 // ============== CONSTANTS ==============
 
-export const CONSUMPTION_STATUS_RPC = 'get_ai_consumption_status';
 export const LIMIT_REACHED_PREFIX = 'Limite mensal de IA atingido';
 
 // ============== ERROR ==============
@@ -75,18 +67,27 @@ export class AiLimitReachedError extends Error {
 
 /** Lança `AiLimitReachedError` no bloqueio; alerta e segue no aviso. Fail-open na falha da RPC (ver comment do arquivo). */
 export async function assertWithinMonthlyLimit(
-  { admin, companyId }: IAssertWithinLimitParams,
+  { adapter, companyId }: IAssertWithinLimitParams,
 ): Promise<IConsumptionStatus | null> {
-  // Sem empresa não há teto a aplicar: os scopes que não são `company` falam da
-  // carteira inteira, e o limite é por empresa.
   if (!companyId) { return null; }
 
-  const { data, error } = await admin.rpc(CONSUMPTION_STATUS_RPC, { p_company_id: companyId });
-
-  if (error || !data) {
-    console.warn('[ai:limit] status unavailable, proceeding', error?.message ?? 'no data');
+  let status;
+  try {
+    status = await adapter.getConsumptionStatus(companyId);
+  } catch (err) {
+    console.warn('[ai:limit] status unavailable, proceeding', err instanceof Error ? err.message : 'unknown');
     return null;
   }
+
+  if (!status) { return null; }
+
+  const data: IConsumptionStatus = {
+    hasLimit: status.hasLimit,
+    limit: status.limitUsd,
+    consumed: status.consumedUsd,
+    percent: status.percent,
+  };
+
   if (!data.hasLimit) { return data; }
 
   const percent = data.percent ?? 0;

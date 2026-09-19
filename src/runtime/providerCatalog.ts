@@ -25,18 +25,9 @@ import {
 import { registerProvider } from '../providers/registry';
 import type { IProviderAdapter } from '../core/types';
 import { AI_PROTOCOLS, type AiProtocol } from '../definitions/aiProviders';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== TYPES ==============
-
-/** Recorte de `ai_providers` que o registry consome. */
-export interface IProviderRow {
-  slug: string;
-  name: string;
-  base_url: string | null;
-  protocol: string;
-  enabled: boolean;
-  active: boolean;
-}
 
 /**
  * O que o catálogo do banco produziu. `disabled` volta junto de propósito: sem
@@ -48,22 +39,6 @@ export interface IProviderCatalog {
   registered: string[];
   disabled: string[];
 }
-
-/** Superfície mínima do client — o teste injeta sem subir the database layer. */
-export interface IProviderCatalogDb {
-  from(table: string): {
-    select(columns: string): PromiseLike<{
-      data: IProviderRow[] | null;
-      error: { message: string } | null;
-    }>;
-  };
-}
-
-// ============== CONSTANTS ==============
-
-export const PROVIDERS_TABLE = 'ai_providers';
-
-const PROVIDER_COLUMNS = 'slug, name, base_url, protocol, enabled, active';
 
 /**
  * Protocolo → adapter. É o mapa inteiro da escolha de porta: o `protocol` da
@@ -117,18 +92,17 @@ function envKeyFor(slug: string): string {
  * que já funcionava — nunca para nenhum provider.
  */
 export async function registerProvidersFromDb(
-  admin: IProviderCatalogDb,
+  adapter: IAiDbAdapter,
 ): Promise<IProviderCatalog> {
   registerBuiltInProviders();
 
-  const { data, error } = await admin
-    .from(PROVIDERS_TABLE)
-    .select(PROVIDER_COLUMNS);
-
-  if (error || !data) {
+  let allProviders;
+  try {
+    allProviders = await adapter.listAllProviders();
+  } catch (err) {
     console.warn(
       '[ai:providers] catálogo indisponível, usando apenas as embutidas',
-      error?.message ?? 'no data',
+      err instanceof Error ? err.message : 'unknown error',
     );
     return { registered: BUILT_IN_PROVIDERS.map((provider) => provider.id), disabled: [] };
   }
@@ -136,16 +110,14 @@ export async function registerProvidersFromDb(
   const registered: string[] = [];
   const disabled: string[] = [];
 
-  for (const row of data) {
-    if (!row.enabled || !row.active) {
+  for (const row of allProviders) {
+    if (!row.enabled) {
       disabled.push(row.slug);
       continue;
     }
 
-    const adapter = ADAPTER_BY_PROTOCOL[row.protocol as AiProtocol];
-    if (!adapter) {
-      // Inalcançável pelo CHECK da 019 — mas um banco convergido à mão passaria
-      // por aqui, e registrar sem adapter adiaria a falha para o meio da chamada.
+    const protocolAdapter = ADAPTER_BY_PROTOCOL[row.protocol as AiProtocol];
+    if (!protocolAdapter) {
       console.warn(`[ai:providers] "${row.slug}" declara protocolo desconhecido "${row.protocol}"`);
       continue;
     }
@@ -154,8 +126,8 @@ export async function registerProvidersFromDb(
       id: row.slug,
       name: row.name,
       envKey: envKeyFor(row.slug),
-      adapter,
-      ...(row.base_url ? { baseUrl: row.base_url } : {}),
+      adapter: protocolAdapter,
+      ...(row.baseUrl ? { baseUrl: row.baseUrl } : {}),
     });
     registered.push(row.slug);
   }

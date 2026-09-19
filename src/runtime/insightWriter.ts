@@ -41,7 +41,7 @@
  *     drafts,
  *   })
  *
- * O client entra por parâmetro (`ICbAIEngineDb`), nunca é criado aqui — é o que
+ * O adapter entra por parâmetro (`IAiDbAdapter`), nunca é criado aqui — é o que
  * permite exercitar a porta inteira contra um duplo em memória.
  */
 
@@ -60,7 +60,7 @@ import type {
   InsightSource,
   InsightType,
 } from '../definitions/insightConfig';
-import type { ICbAIEngineDb } from '../engine/tools/db';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
 
 // ============== TYPES ==============
 
@@ -85,8 +85,7 @@ export interface IInsightOrigin {
 }
 
 export interface IWriteInsightsParams {
-  /** Client já escopado em `engine`, com poder de service_role (a RLS só deixa ele inserir). */
-  db: ICbAIEngineDb;
+  adapter: IAiDbAdapter;
   target: IInsightTarget;
   origin: IInsightOrigin;
   drafts: readonly IInsightDraft[];
@@ -188,7 +187,7 @@ function toInsightRow(
 // ============== PORTA ==============
 
 export async function writeInsights(
-  { db, target, origin, drafts }: IWriteInsightsParams,
+  { adapter, target, origin, drafts }: IWriteInsightsParams,
 ): Promise<IWriteInsightsResult> {
   assertTarget({ target, origin });
 
@@ -204,25 +203,12 @@ export async function writeInsights(
     rows.push(toInsightRow({ draft, target, origin }));
   }
 
-  // Leva inteiramente recusada (ou vazia) não gasta ida ao banco. O relatório de
-  // recusas sobrevive: é ele que diz por que nada foi escrito.
   if (rows.length === 0) {
     return { written: [], rejected };
   }
 
-  const { data, error } = await db.from(AI_INSIGHTS_TABLE)
-    .insert<{ id: string }>(rows)
-    .select('id');
-
-  // 🔴 Lança, não devolve `{ written: [] }`. Um insert que falhou e um insert de
-  // zero linhas são a MESMA forma para quem lê o resultado — e a diferença entre
-  // "o modelo não achou nada" e "o banco recusou a escrita" é exatamente o que o
-  // `sync_error` da reunião precisa dizer.
-  if (error) {
-    throw new Error(`ai_insights insert failed: ${error.message}`);
-  }
-
-  return { written: (data ?? []).map((row) => row.id), rejected };
+  const written = await adapter.insertInsights(rows);
+  return { written, rejected };
 }
 
 // ============== DEDUP DE REPROCESSAMENTO ==============
@@ -253,8 +239,8 @@ export async function writeInsights(
  * fila enquanto ela não venceu.
  */
 export async function hasInsightsFrom(
-  { db, origin, since }: {
-    db: ICbAIEngineDb;
+  { adapter, origin, since }: {
+    adapter: IAiDbAdapter;
     origin: IInsightOrigin;
     /** Instante ISO a partir do qual a pergunta vale. Ausente = desde sempre. */
     since?: string | null;
@@ -262,19 +248,9 @@ export async function hasInsightsFrom(
 ): Promise<boolean> {
   if (!origin.sourceId) { return false; }
 
-  let query = db.from(AI_INSIGHTS_TABLE)
-    .select<{ id: string }>('id')
-    .eq('source', origin.source)
-    .eq('source_id', origin.sourceId)
-    .eq('active', true);
-
-  if (since) { query = query.gte('created_at', since); }
-
-  const { data, error } = await query.limit(1);
-
-  if (error) {
-    throw new Error(`ai_insights lookup failed: ${error.message}`);
-  }
-
-  return (data ?? []).length > 0;
+  return adapter.hasInsightsFrom({
+    source: origin.source,
+    sourceId: origin.sourceId,
+    since,
+  });
 }

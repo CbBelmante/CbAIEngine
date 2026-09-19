@@ -20,7 +20,7 @@ import { defineTool } from '../../core/tools';
 import type { IToolContext, IToolDef, IToolOutput } from '../../core/types';
 import type { CardInline, Suggestion } from '../../definitions/assistantContract';
 import type { IMemoryWriter } from '../memoryWriter';
-import type { ICbAIEngineDb } from './db';
+import type { IAiDbAdapter } from '../../dbAdapter/dbAdapter';
 
 // ============== CONSTANTS ==============
 
@@ -61,17 +61,10 @@ export function createAssistantCollector(): IAssistantCollector {
 // ============== CONTEXT ==============
 
 export interface IAssistantToolContext extends IToolContext {
-  /** Client do CALLER — as tools rodam sob o RLS do usuário, nunca como service_role. */
-  engine: ICbAIEngineDb;
+  adapter: IAiDbAdapter;
   threadId: string;
-  /** `engine.is_internal_staff()`, resolvido uma vez por request. */
   isInternal: boolean;
   collector: IAssistantCollector;
-  /**
-   * Porta ESTREITA de escrita da memória durável (`save_memory`). Uma função,
-   * não um client: a escrita exige service_role, e um client aqui daria bypass
-   * de RLS às outras dezesseis. Ver `memoryWriter.ts`.
-   */
   memory: IMemoryWriter;
 }
 
@@ -85,7 +78,7 @@ export function isAssistantToolContext(context: IToolContext): context is IAssis
     && typeof context['isInternal'] === 'boolean'
     && context['collector'] !== undefined
     && context['memory'] !== undefined
-    && context['engine'] !== undefined;
+    && context['adapter'] !== undefined;
 }
 
 export class AssistantToolContextError extends Error {
@@ -94,7 +87,7 @@ export class AssistantToolContextError extends Error {
 
 export function assertAssistantToolContext(context: IToolContext): IAssistantToolContext {
   if (!isAssistantToolContext(context)) {
-    throw new AssistantToolContextError('Assistant tool ran without engine/threadId/isInternal/collector/memory');
+    throw new AssistantToolContextError('Assistant tool ran without adapter/threadId/isInternal/collector/memory');
   }
   return context;
 }
@@ -150,13 +143,13 @@ async function recordToolMessage(
   },
 ): Promise<void> {
   try {
-    await context.engine.from(TOOL_MESSAGES_TABLE).insert({
-      thread_id: context.threadId,
+    await context.adapter.recordToolMessage({
+      threadId: context.threadId,
       role: 'tool',
       content: null,
-      tool_name: name,
-      tool_input: input,
-      tool_result: result,
+      toolName: name,
+      toolInput: input,
+      toolResult: result,
     });
   } catch (error) {
     console.error('[assistant:tool_message]', name, error);

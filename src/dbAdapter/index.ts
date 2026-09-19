@@ -8,5 +8,10 @@ export type {
   IAiRunInput,
   IAiInvocationInput,
   IAiStepInput,
+  IAiKnowledgeHit,
+  IAiKnowledgeSearchParams,
+  IAiKnowledgeEntryInput,
+  IAiInsightOrigin,
+  IAiToolMessageInput,
 } from './types';
 export { createMemoryAdapter } from './memoryAdapter';

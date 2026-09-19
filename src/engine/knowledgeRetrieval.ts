@@ -18,7 +18,8 @@
  */
 
 import type { IMiddleware, NMessage, NMessagePart } from '../core/types';
-import type { IKnowledgeHit, IKnowledgeSearchDb } from '../runtime/knowledgeSearch';
+import type { IAiDbAdapter } from '../dbAdapter/dbAdapter';
+import type { IAiKnowledgeHit } from '../dbAdapter/types';
 import { searchKnowledge } from '../runtime/knowledgeSearch';
 
 // ============== CONSTANTS ==============
@@ -37,8 +38,7 @@ export const KNOWLEDGE_BLOCK_HEADING =
 // ============== TYPES ==============
 
 export interface ICreateKnowledgeMiddlewareParams {
-  /** 🔴 Client do CALLER. O admin bypassa a RLS e vaza nota interna — ver `knowledgeSearch.ts`. */
-  db: IKnowledgeSearchDb;
+  adapter: IAiDbAdapter;
   embedQuery(text: string): Promise<number[]>;
   topK?: number;
   similarityThreshold?: number;
@@ -70,7 +70,7 @@ export function readLastUserText(messages: NMessage[]): string {
  * `similarity` e `entry_id` ficam DE FORA do texto: número solto no prompt vira
  * citação inventada, e o id não significa nada para quem lê a resposta.
  */
-export function renderKnowledgeBlock(hits: IKnowledgeHit[]): string {
+export function renderKnowledgeBlock(hits: IAiKnowledgeHit[]): string {
   const lines: string[] = [KNOWLEDGE_BLOCK_HEADING];
   for (const hit of hits) {
     lines.push(`\n## ${hit.title}\n${hit.content}`);
@@ -108,7 +108,7 @@ export function createKnowledgeRetrievalMiddleware(
       try {
         const queryEmbedding = await params.embedQuery(query);
         const hits = await searchKnowledge({
-          db: params.db,
+          adapter: params.adapter,
           queryEmbedding,
           ...(params.topK !== undefined ? { topK: params.topK } : {}),
           ...(params.similarityThreshold !== undefined

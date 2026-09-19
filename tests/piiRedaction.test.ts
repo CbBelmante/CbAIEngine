@@ -182,25 +182,31 @@ interface IMemoryStub {
 function makeMemoryStub(): IMemoryStub {
   const inserted: Record<string, unknown>[] = [];
 
-  const makeChain = (table: string): Record<string, unknown> => {
-    const chain: Record<string, unknown> = {};
-    chain.select = (): unknown => chain;
-    chain.eq = (): unknown => chain;
-    chain.insert = (values: Record<string, unknown>): unknown => {
-      inserted.push(values);
-      return chain;
-    };
-    chain.maybeSingle = (): Promise<unknown> => Promise.resolve({
-      data: table === KNOWLEDGE_CATEGORIES_TABLE ? { id: 'category-1' } : null,
-      error: null,
-    });
-    chain.single = (): Promise<unknown> =>
-      Promise.resolve({ data: { id: 'entry-1' }, error: null });
-    return chain;
+  const adapter = {
+    getKnowledgeCategoryBySlug: async () => ({ id: 'category-1' }),
+    insertKnowledgeEntry: async (entry: Record<string, unknown>) => {
+      inserted.push(entry);
+      return { id: 'entry-1' };
+    },
+    getConfig: async () => null,
+    getCredential: async () => null,
+    listProviders: async () => [],
+    listAllProviders: async () => [],
+    getProvider: async () => null,
+    openRun: async () => '',
+    closeRun: async () => {},
+    recordInvocation: async () => {},
+    recordStep: async () => {},
+    getModelPricing: async () => null,
+    getConsumptionStatus: async () => null,
+    searchKnowledge: async () => [],
+    insertInsights: async () => [],
+    hasInsightsFrom: async () => false,
+    recordToolMessage: async () => {},
   };
 
   return {
-    db: { from: (table: string) => makeChain(table) } as never,
+    db: adapter as never,
     inserted: () => inserted,
   };
 }
@@ -208,7 +214,7 @@ function makeMemoryStub(): IMemoryStub {
 it('pii: caminho 2 — save_memory grava o conteúdo JÁ REDIGIDO', async () => {
   const stub = makeMemoryStub();
   const writer = createMemoryWriter({
-    admin: stub.db,
+    adapter: stub.db,
     isInternal: true,
     companyId: 'company-1',
     userId: 'user-1',
@@ -229,7 +235,7 @@ it('pii: caminho 2 — save_memory grava o conteúdo JÁ REDIGIDO', async () => 
 it('pii: caminho 2 — conteúdo legítimo é gravado intacto', async () => {
   const stub = makeMemoryStub();
   const writer = createMemoryWriter({
-    admin: stub.db,
+    adapter: stub.db,
     isInternal: true,
     companyId: 'company-1',
     userId: 'user-1',
