@@ -67,19 +67,19 @@ const LEGITIMATE_CRM_TEXT =
 it('pii: o mesmo CPF é redigido nas três formas — separador não muda o dado', () => {
   for (const written of [CPF_FORMATTED, CPF_SPACED, CPF_RAW]) {
     const { text } = redactText(`o cliente mandou ${written} para faturar`);
-    expect(text, 'o cliente mandou [REDACTED:CPF#1] para faturar');
+    expect(text).toBe('o cliente mandou [REDACTED:CPF#1] para faturar');
   }
 });
 
 it('pii: onze dígitos com verificador inválido passam — é protocolo, não CPF', () => {
   const { text, counts } = redactText(`Protocolo ${PROTOCOL_11_DIGITS} registrado`);
-  expect(text, `Protocolo ${PROTOCOL_11_DIGITS} registrado`);
-  expect(counts, null);
+  expect(text).toBe(`Protocolo ${PROTOCOL_11_DIGITS} registrado`);
+  expect(counts).toBeNull();
 });
 
 it('pii: CPF de dígitos repetidos passa — passa no módulo 11 e não é CPF', () => {
   const { counts } = redactText('documento 111.111.111-11');
-  expect(counts, null);
+  expect(counts).toBeNull();
 });
 
 // ============== O CATÁLOGO: TELEFONE ==============
@@ -87,18 +87,18 @@ it('pii: CPF de dígitos repetidos passa — passa no módulo 11 e não é CPF',
 it('pii: celular é redigido com e sem formatação', () => {
   for (const written of [MOBILE_FORMATTED, MOBILE_RAW, '+55 11 98765-4321']) {
     const { text } = redactText(`chama no ${written}`);
-    expect(text, 'chama no [REDACTED:PHONE#1]');
+    expect(text).toBe('chama no [REDACTED:PHONE#1]');
   }
 });
 
 it('pii: fixo FORMATADO é redigido; dez dígitos crus passam (ambíguos com protocolo)', () => {
-  expect(redactText('ligue (11) 3265-4321').text, 'ligue [REDACTED:PHONE#1]');
-  expect(redactText('referência 1132654321').counts, null);
+  expect(redactText('ligue (11) 3265-4321').text).toBe('ligue [REDACTED:PHONE#1]');
+  expect(redactText('referência 1132654321').counts).toBeNull();
 });
 
 it('pii: DDD inexistente passa intacto', () => {
   // 20 não é DDD em uso — sem a lista, onze dígitos viravam telefone só pelo tamanho.
-  expect(redactText('numero 20987654321').counts, null);
+  expect(redactText('numero 20987654321').counts).toBeNull();
 });
 
 // ============== O ORDINAL ==============
@@ -110,27 +110,27 @@ it('pii: mesmo valor mantém o ordinal; valores distintos recebem ordinais disti
   // O MESMO número da primeira linha, escrito sem formatação: é a mesma pessoa.
   const third = scope.redactText(`de novo ${MOBILE_RAW}`);
 
-  expect(first, 'orfao A [REDACTED:PHONE#1]');
-  expect(second, 'orfao B [REDACTED:PHONE#2]');
-  expect(third, 'de novo [REDACTED:PHONE#1]');
+  expect(first).toBe('orfao A [REDACTED:PHONE#1]');
+  expect(second).toBe('orfao B [REDACTED:PHONE#2]');
+  expect(third).toBe('de novo [REDACTED:PHONE#1]');
   // Dois valores DISTINTOS — a contagem não conta ocorrências.
-  expect(scope.counts(), { phone: 2 });
+  expect(scope.counts()).toEqual({ phone: 2 });
 });
 
 // ============== 🔴 O CASO NEGATIVO ==============
 
 it('pii: conteúdo legítimo do CRM atravessa BYTE A BYTE — redigir demais cega o agente', () => {
   const { text, counts } = redactText(LEGITIMATE_CRM_TEXT);
-  expect(text, LEGITIMATE_CRM_TEXT);
-  expect(counts, null);
+  expect(text).toBe(LEGITIMATE_CRM_TEXT);
+  expect(counts).toBeNull();
 });
 
 // ============== CAMINHO 1 — O PROVIDER ==============
 
 it('pii: o middleware é um transform de pre-model', () => {
   const middleware = createPiiRedactionMiddleware();
-  expect(middleware.name, PII_REDACTION_MIDDLEWARE_NAME);
-  expect(middleware.phase, 'pre-model');
+  expect(middleware.name).toBe(PII_REDACTION_MIDDLEWARE_NAME);
+  expect(middleware.phase).toBe('pre-model');
 });
 
 it('pii: caminho 1 — nada com forma de CPF sai para o provider', async () => {
@@ -142,14 +142,12 @@ it('pii: caminho 1 — nada com forma de CPF sai para o provider', async () => {
   const transformed = await createPiiRedactionMiddleware().transform!(messages);
   const [question, toolResult] = transformed;
 
-  expect(question, { role: 'user', content: 'resume a conversa do [REDACTED:PHONE#1]' });
-  expect(toolResult, {
-    role: 'tool',
-    toolCallId: 'call-1',
-    content: 'Meu CPF é [REDACTED:CPF#1], pode faturar',
-  });
+  expect(question).toEqual({ role: 'user', content: 'resume a conversa do [REDACTED:PHONE#1]' });
+  expect(toolResult)
+    .toEqual({ role: 'tool', toolCallId: 'call-1', content: 'Meu CPF é [REDACTED:CPF#1], pode faturar', });
   // O histórico do chamador não é área de trabalho do middleware.
-  expect(messages[0], { role: 'user', content: `resume a conversa do ${MOBILE_FORMATTED}` });
+  expect(messages[0])
+    .toEqual({ role: 'user', content: `resume a conversa do ${MOBILE_FORMATTED}` });
 });
 
 it('pii: sem PII o middleware devolve a MESMA referência — reporta pass, não transform', async () => {
@@ -226,10 +224,10 @@ it('pii: caminho 2 — save_memory grava o conteúdo JÁ REDIGIDO', async () => 
     content: `Cliente confirmou o CPF ${CPF_FORMATTED} para faturamento`,
   });
 
-  expect(saved.id, 'entry-1');
+  expect(saved.id).toBe('entry-1');
   const [row] = stub.inserted();
-  expect(row['title'], 'Contato [REDACTED:PHONE#1]');
-  expect(row['content'], 'Cliente confirmou o CPF [REDACTED:CPF#1] para faturamento');
+  expect(row['title']).toBe('Contato [REDACTED:PHONE#1]');
+  expect(row['content']).toBe('Cliente confirmou o CPF [REDACTED:CPF#1] para faturamento');
 });
 
 it('pii: caminho 2 — conteúdo legítimo é gravado intacto', async () => {
@@ -243,7 +241,7 @@ it('pii: caminho 2 — conteúdo legítimo é gravado intacto', async () => {
   });
 
   await writer.save({ title: 'ACME', content: LEGITIMATE_CRM_TEXT });
-  expect(stub.inserted()[0]?.['content'], LEGITIMATE_CRM_TEXT);
+  expect(stub.inserted()[0]?.['content']).toBe(LEGITIMATE_CRM_TEXT);
 });
 
 // ============== CAMINHO 3 — ai_run_steps ==============
@@ -256,11 +254,8 @@ it('pii: caminho 3 — o prompt do model_call é redigido e o step ganha o marca
     payload: { model: 'haiku', prompt: `manda mensagem pro ${MOBILE_FORMATTED}` },
   });
 
-  expect(row['payload'], {
-    model: 'haiku',
-    prompt: 'manda mensagem pro [REDACTED:PHONE#1]',
-    [PII_TRACE_KEY]: { phone: 1 },
-  });
+  expect(row['payload'])
+    .toEqual({ model: 'haiku', prompt: 'manda mensagem pro [REDACTED:PHONE#1]', [PII_TRACE_KEY]: { phone: 1 }, });
 });
 
 it('pii: caminho 3 — o tool_result também é payload, e também é redigido', () => {
@@ -271,12 +266,8 @@ it('pii: caminho 3 — o tool_result também é payload, e também é redigido',
     payload: { tool: 'get_conversation', isError: false, content: `CPF ${CPF_RAW}` },
   });
 
-  expect(row['payload'], {
-    tool: 'get_conversation',
-    isError: false,
-    content: 'CPF [REDACTED:CPF#1]',
-    [PII_TRACE_KEY]: { cpf: 1 },
-  });
+  expect(row['payload'])
+    .toEqual({ tool: 'get_conversation', isError: false, content: 'CPF [REDACTED:CPF#1]', [PII_TRACE_KEY]: { cpf: 1 }, });
 });
 
 it('pii: caminho 3 — args aninhados de tool_call são alcançados', () => {
@@ -287,11 +278,8 @@ it('pii: caminho 3 — args aninhados de tool_call são alcançados', () => {
     payload: { tool: 'search_company', args: { query: `cliente ${CPF_FORMATTED}`, limit: 5 } },
   });
 
-  expect(row['payload'], {
-    tool: 'search_company',
-    args: { query: 'cliente [REDACTED:CPF#1]', limit: 5 },
-    [PII_TRACE_KEY]: { cpf: 1 },
-  });
+  expect(row['payload'])
+    .toEqual({ tool: 'search_company', args: { query: 'cliente [REDACTED:CPF#1]', limit: 5 }, [PII_TRACE_KEY]: { cpf: 1 }, });
 });
 
 it('pii: caminho 3 — sem redação o payload NÃO ganha a chave, nem zerada', () => {
@@ -302,7 +290,7 @@ it('pii: caminho 3 — sem redação o payload NÃO ganha a chave, nem zerada', 
     payload: { model: 'haiku', prompt: LEGITIMATE_CRM_TEXT },
   });
 
-  expect(row['payload'], { model: 'haiku', prompt: LEGITIMATE_CRM_TEXT });
+  expect(row['payload']).toEqual({ model: 'haiku', prompt: LEGITIMATE_CRM_TEXT });
 });
 
 it('pii: caminho 3 — o marcador sobrevive ao teto, e o preview não carrega o dado', () => {
@@ -315,9 +303,9 @@ it('pii: caminho 3 — o marcador sobrevive ao teto, e o preview não carrega o 
   });
 
   const payload = row['payload'] as Record<string, unknown>;
-  expect(payload['truncated'], true);
+  expect(payload['truncated']).toBe(true);
   // O registro DE QUE houve redação é o que a auditoria lê — o corte não pode comê-lo.
-  expect(payload[PII_TRACE_KEY], { cpf: 1 });
+  expect(payload[PII_TRACE_KEY]).toEqual({ cpf: 1 });
   // E o recorte é feito sobre o texto JÁ redigido.
-  expect(String(payload['preview']).includes(CPF_RAW), false);
+  expect(String(payload['preview']).includes(CPF_RAW)).toBe(false);
 });

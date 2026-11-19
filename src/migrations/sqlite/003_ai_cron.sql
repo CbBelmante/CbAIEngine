@@ -8,6 +8,9 @@
 --- Depende de: nada
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_cron_jobs
@@ -26,6 +29,7 @@ CREATE TABLE IF NOT EXISTS ai_cron_jobs (
   last_run_at     TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -43,19 +47,3 @@ CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_restore AFTER UPDATE OF active ON ai_c
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_cron_jobs SET deleted_at = NULL WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_audit_insert AFTER INSERT ON ai_cron_jobs
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_cron_jobs', NEW.id, 'INSERT',
-    json_object('name', NEW.name, 'schedule', NEW.schedule, 'target_function', NEW.target_function),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_audit_update AFTER UPDATE ON ai_cron_jobs
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_cron_jobs', NEW.id, 'UPDATE',
-    json_object('name', OLD.name, 'schedule', OLD.schedule, 'enabled', OLD.enabled, 'active', OLD.active),
-    json_object('name', NEW.name, 'schedule', NEW.schedule, 'enabled', NEW.enabled, 'active', NEW.active),
-    datetime('now'));
-END;

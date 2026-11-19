@@ -82,9 +82,9 @@ it('select sem maybeSingle - await resolve para ARRAY de linhas', async () => {
   // atribuição não compilaria. É aqui que a reversão fica vermelha.
   const rows: DbRow[] | null = result.data;
 
-  expect(Array.isArray(rows), true);
-  expect(rows?.length, 2);
-  expect(rows?.[0].provider, 'anthropic');
+  expect(Array.isArray(rows)).toBe(true);
+  expect(rows?.length).toBe(2);
+  expect(rows?.[0].provider).toBe('anthropic');
 });
 
 it('select sem maybeSingle - filtros encadeados preservam o formato de conjunto', async () => {
@@ -96,8 +96,8 @@ it('select sem maybeSingle - filtros encadeados preservam o formato de conjunto'
 
   const rows: DbRow[] | null = result.data;
 
-  expect(Array.isArray(rows), true);
-  expect(rows?.length, 2);
+  expect(Array.isArray(rows)).toBe(true);
+  expect(rows?.length).toBe(2);
 });
 
 // ============== O OUTRO EIXO — maybeSingle entrega UMA LINHA ==============
@@ -113,8 +113,8 @@ it('maybeSingle - resolve para UMA linha, nunca um array', async () => {
   // separar os eixos deixaria ESTA linha vermelha — a mentira só mudaria de lado.
   const row: DbRow | null = result.data;
 
-  expect(Array.isArray(row), false);
-  expect(row?.provider, 'anthropic');
+  expect(Array.isArray(row)).toBe(false);
+  expect(row?.provider).toBe('anthropic');
 });
 
 it('maybeSingle - ausência de linha é null, não erro', async () => {
@@ -136,8 +136,8 @@ it('maybeSingle - ausência de linha é null, não erro', async () => {
 
   const result = await emptyDb.from('ai_model_pricing').select('provider').maybeSingle();
 
-  expect(result.data, null);
-  expect(result.error, null);
+  expect(result.data).toBeNull();
+  expect(result.error).toBeNull();
 });
 
 it('select sem maybeSingle - tabela vazia é array vazio, não null', async () => {
@@ -160,6 +160,6 @@ it('select sem maybeSingle - tabela vazia é array vazio, não null', async () =
   const result = await emptyDb.from('ai_model_pricing').select('provider');
   const rows: DbRow[] | null = result.data;
 
-  expect(Array.isArray(rows), true);
-  expect(rows?.length, 0);
+  expect(Array.isArray(rows)).toBe(true);
+  expect(rows?.length).toBe(0);
 });

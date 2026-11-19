@@ -84,7 +84,11 @@ function memoryDb(): { db: IAiDbAdapter; rows: DbRow[] } {
 }
 
 function stepsOf(rows: DbRow[]): DbRow[] {
-  return rows.filter((row) => row['step_type'] !== undefined);
+  // ⚠️ `stepType`, e não `step_type`: quem grava é `recordStep` do
+  // `IAiDbAdapter`, que recebe camelCase. O nome em snake era do mock antigo,
+  // e com ele o filtro devolvia lista vazia — toda asserção abaixo passava a
+  // olhar `undefined`.
+  return rows.filter((row) => row['stepType'] !== undefined);
 }
 
 /** O sink já ligado a um recorder de verdade — é a fiação que o handler monta. */
@@ -183,7 +187,7 @@ it('abaixo do limiar: NADA muda, e o modelo NÃO é chamado', async () => {
   // `transform` (middleware.ts). Um array novo idêntico passaria num expect
   // e mentiria no trace.
   expect(result).toBe(SHORT_HISTORY);
-  expect(spy.calls.length, 0, 'sumarização por reflexo é gasto, não economia');
+  expect(spy.calls.length, 'sumarização por reflexo é gasto, não economia').toBe(0);
 });
 
 it('acima do limiar: condensa, e as recentes ficam BYTE A BYTE', async () => {
@@ -194,13 +198,10 @@ it('acima do limiar: condensa, e as recentes ficam BYTE A BYTE', async () => {
 
   const result = await runTransform(middleware, history);
 
-  expect(spy.calls.length, 1);
+  expect(spy.calls.length).toBe(1);
   expect(result.length).not.toEqual(history.length);
-  expect(
-    result.slice(1),
-    history.slice(history.length - POLICY.keepRecentMessages),
-    'a conversa viva é preservada literal — o resumo só substitui o que já foi resolvido',
-  );
+  expect(result.slice(1), 'a conversa viva é preservada literal — o resumo só substitui o que já foi resolvido')
+    .toEqual(history.slice(history.length - POLICY.keepRecentMessages));
 });
 
 it('o resumo entra IDENTIFICÁVEL: system + rótulo que diz que substitui', async () => {
@@ -210,10 +211,10 @@ it('o resumo entra IDENTIFICÁVEL: system + rótulo que diz que substitui', asyn
 
   const [first] = await runTransform(middleware, longHistory());
 
-  expect(first?.role, 'system');
+  expect(first?.role).toBe('system');
   const content = String((first as { content: string }).content);
-  expect(content.startsWith(CONTEXT_SUMMARY_HEADING), true);
-  expect(content.includes('RECAP: prazo do #4821 é sexta.'), true);
+  expect(content.startsWith(CONTEXT_SUMMARY_HEADING)).toBe(true);
+  expect(content.includes('RECAP: prazo do #4821 é sexta.')).toBe(true);
 });
 
 // ============== O TRACE — ANTES/DEPOIS QUE BATEM COM A REALIDADE ==============
@@ -228,27 +229,24 @@ it('o trace grava antes/depois em tokens, e declara COMO mediu', async () => {
 
   const [step] = stepsOf(rows);
   const payload = step?.['payload'] as Record<string, unknown>;
-  expect(payload['name'], CONTEXT_SUMMARIZATION_MIDDLEWARE_NAME);
-  expect(payload['estimator'], TOKEN_ESTIMATOR_ID);
-  expect(payload['charsPerToken'], POLICY.charsPerToken);
-  expect(payload['messagesBefore'], history.length);
-  expect(payload['messagesAfter'], result.length);
+  expect(payload['name']).toBe(CONTEXT_SUMMARIZATION_MIDDLEWARE_NAME);
+  expect(payload['estimator']).toBe(TOKEN_ESTIMATOR_ID);
+  expect(payload['charsPerToken']).toBe(POLICY.charsPerToken);
+  expect(payload['messagesBefore']).toBe(history.length);
+  expect(payload['messagesAfter']).toBe(result.length);
 
   // 🔴 A âncora: o número gravado é recomputado do array REALMENTE devolvido,
   // com a régua declarada no próprio payload. Um `tokensAfter` de intenção
   // (o teto pedido ao modelo, um valor fixo) não sobrevive a isto.
   const charsAfter = result.map((message) => String((message as { content: string }).content).length)
     .reduce((total, chars) => total + chars, 0);
-  expect(payload['charsAfter'], charsAfter);
-  expect(
-    payload['tokensAfter'],
-    estimateTokens({ chars: charsAfter, charsPerToken: POLICY.charsPerToken }),
-  );
+  expect(payload['charsAfter']).toBe(charsAfter);
+  expect(payload['tokensAfter'])
+    .toBe(estimateTokens({ chars: charsAfter, charsPerToken: POLICY.charsPerToken }));
   expect(
     Number(payload['tokensAfter']) < Number(payload['tokensBefore']),
-    true,
     'o passo só é gravado como condensação quando houve redução',
-  );
+  ).toBe(true);
 });
 
 // ============== PONTA A PONTA PELO MOTOR ==============
@@ -308,17 +306,14 @@ it('ponta a ponta: o provider COBRA menos, e o trace disse a verdade', async () 
   const withoutMiddleware = await runThroughEngine([]);
 
   // 🔴 CONTRAPROVA VIVA: tirar o middleware da cadeia devolve o gasto integral.
-  expect(
-    withMiddleware < withoutMiddleware,
-    true,
-    `sem redução real não há alavanca (${withMiddleware} vs ${withoutMiddleware})`,
-  );
+  expect(withMiddleware < withoutMiddleware, `sem redução real não há alavanca (${withMiddleware} vs ${withoutMiddleware})`)
+    .toBe(true);
 
   const payload = stepsOf(rows)[0]?.['payload'] as Record<string, unknown>;
   // O trace não é uma contabilidade paralela: o que ele afirmou é o que o
   // provider cobrou, medido do lado de fora.
-  expect(payload['tokensBefore'], withoutMiddleware);
-  expect(payload['tokensAfter'], withMiddleware);
+  expect(payload['tokensBefore']).toBe(withoutMiddleware);
+  expect(payload['tokensAfter']).toBe(withMiddleware);
 });
 
 // ============== INTEGRIDADE DO PROTOCOLO ==============
@@ -337,8 +332,8 @@ it('o corte NUNCA deixa um tool_result órfão no trecho preservado', () => {
   const boundary = findSafeBoundary({ messages, keepRecentMessages: 3 });
 
   // Avança sobre o `tool` órfão E sobre o `assistant` que abriria a conversa.
-  expect(boundary, 5);
-  expect(messages[boundary]?.role, 'user');
+  expect(boundary).toBe(5);
+  expect(messages[boundary]?.role).toBe('user');
 });
 
 /**
@@ -353,7 +348,7 @@ it('sem fronteira segura no trecho recente, NÃO condensa', async () => {
     { role: 'tool', toolCallId: 't1', content: 'x'.repeat(400) },
     { role: 'assistant', content: 'y'.repeat(400) },
   ];
-  expect(findSafeBoundary({ messages, keepRecentMessages: 3 }), messages.length);
+  expect(findSafeBoundary({ messages, keepRecentMessages: 3 })).toBe(messages.length);
 
   const spy = summarizerSpy();
   const { record } = tracedSink();
@@ -362,7 +357,7 @@ it('sem fronteira segura no trecho recente, NÃO condensa', async () => {
   const result = await runTransform(middleware, messages);
 
   expect(result).toBe(messages);
-  expect(spy.calls.length, 0, 'nem chega a pagar o resumo');
+  expect(spy.calls.length, 'nem chega a pagar o resumo').toBe(0);
 });
 
 /**
@@ -389,7 +384,7 @@ it('fronteira: keep PAR sobre histórico que termina em user NÃO abre com assis
 
   const boundary = findSafeBoundary({ messages, keepRecentMessages: 6 });
 
-  expect(messages[boundary]?.role, 'user', 'o corte cai num assistant e precisa avançar');
+  expect(messages[boundary]?.role, 'o corte cai num assistant e precisa avançar').toBe('user');
 });
 
 it('condensação real: o trecho preservado abre com user, nunca com assistant', async () => {
@@ -406,13 +401,10 @@ it('condensação real: o trecho preservado abre com user, nunca com assistant',
 
   const result = await runTransform(middleware, history);
 
-  expect(result[0]?.role, 'system', 'o resumo abre o array…');
+  expect(result[0]?.role, 'o resumo abre o array…').toBe('system');
   // …e some no fio do adapter Anthropic, então quem ABRE de verdade é este:
-  expect(
-    result[1]?.role,
-    'user',
-    'sem o `system`, um assistant abriria a conversa no fio — o provider recusa',
-  );
+  expect(result[1]?.role, 'sem o `system`, um assistant abriria a conversa no fio — o provider recusa')
+    .toBe('user');
 });
 
 it('condensação real: o trecho preservado não começa com tool', async () => {
@@ -433,9 +425,9 @@ it('condensação real: o trecho preservado não começa com tool', async () => 
 
   const result = await runTransform(middleware, history);
 
-  expect(result[0]?.role, 'system');
+  expect(result[0]?.role).toBe('system');
   expect(result[1]?.role).not.toEqual('tool', 'tool_result sem tool_use faz o provider recusar tudo');
-  expect(result[1]?.role, 'user', 'e um assistant abrindo o array no fio também é recusado');
+  expect(result[1]?.role, 'e um assistant abrindo o array no fio também é recusado').toBe('user');
 });
 
 // ============== PII NÃO VAZA PARA QUEM RESUME ==============
@@ -458,8 +450,8 @@ it('o transcript enviado a quem resume vai REDIGIDO', async () => {
   // 🔴 Este middleware roda ANTES do gate final de PII: sem a redação própria,
   // o CPF sairia cru para o provider de quem resume — um quarto caminho de
   // exposição, contornando o catálogo do #359.
-  expect(sent.includes(CPF_FORMATTED), false);
-  expect(sent.includes('[REDACTED:CPF#1]'), true);
+  expect(sent.includes(CPF_FORMATTED)).toBe(false);
+  expect(sent.includes('[REDACTED:CPF#1]')).toBe(true);
 });
 
 // ============== SEM MODELO: RECUSA, JAMAIS FALLBACK ==============
@@ -474,9 +466,9 @@ it('summarizer que recusa: histórico INTACTO e o trace diz que pulou', async ()
 
   expect(result).toBe(history, 'economia que não pode rodar não derruba a conversa');
   const payload = stepsOf(rows)[0]?.['payload'] as Record<string, unknown>;
-  expect(payload['skipped'], SUMMARIZER_FAILED_REASON);
+  expect(payload['skipped']).toBe(SUMMARIZER_FAILED_REASON);
   // A falha é DESCRITA, nunca engolida — a regra dura do projeto.
-  expect(typeof (payload['error'] as Record<string, unknown>)['message'], 'string');
+  expect(typeof (payload['error'] as Record<string, unknown>)['message']).toBe('string');
 });
 
 // ============== A CONFERÊNCIA DA PROMESSA ==============
@@ -491,7 +483,7 @@ it('resumo que não encolhe o contexto é DESCARTADO', async () => {
 
   expect(result).toBe(history);
   const payload = stepsOf(rows)[0]?.['payload'] as Record<string, unknown>;
-  expect(payload['skipped'], NO_REDUCTION_REASON);
+  expect(payload['skipped']).toBe(NO_REDUCTION_REASON);
 });
 
 // ============== MEMOIZAÇÃO — UMA CHAMADA POR TRECHO, NÃO POR VOLTA ==============
@@ -508,7 +500,7 @@ it('três voltas do tool-loop pagam UM resumo, não três', async () => {
 
   // A fase `pre-model` roda A CADA volta (loop.ts). Sem memoização, o remédio
   // custaria mais que a doença.
-  expect(spy.calls.length, 1);
+  expect(spy.calls.length).toBe(1);
 });
 
 // ============== O LIMIAR É DECLARATIVO ==============
@@ -518,8 +510,8 @@ it('ai_config.params sobrescreve o limiar; lixo cai no default', () => {
     [SUMMARIZATION_PARAM_KEYS.TRIGGER_TOKENS]: 12_000,
     [SUMMARIZATION_PARAM_KEYS.KEEP_RECENT_MESSAGES]: 10,
   });
-  expect(overridden.triggerTokens, 12_000);
-  expect(overridden.keepRecentMessages, 10);
+  expect(overridden.triggerTokens).toBe(12_000);
+  expect(overridden.keepRecentMessages).toBe(10);
 
   // `params` é jsonb livre: a tela pode gravar string, zero ou negativo. Um
   // limiar `0` faria a sumarização rodar em toda conversa — o oposto do pedido.
@@ -527,8 +519,8 @@ it('ai_config.params sobrescreve o limiar; lixo cai no default', () => {
     [SUMMARIZATION_PARAM_KEYS.TRIGGER_TOKENS]: 0,
     [SUMMARIZATION_PARAM_KEYS.KEEP_RECENT_MESSAGES]: 'seis',
   });
-  expect(rubbish.triggerTokens, SUMMARIZATION_DEFAULTS.trigger_tokens);
-  expect(rubbish.keepRecentMessages, SUMMARIZATION_DEFAULTS.keep_recent_messages);
+  expect(rubbish.triggerTokens).toBe(SUMMARIZATION_DEFAULTS.trigger_tokens);
+  expect(rubbish.keepRecentMessages).toBe(SUMMARIZATION_DEFAULTS.keep_recent_messages);
 
   // Contagem de MENSAGENS não aceita fração: `6.5` daria um índice de corte
   // fracionário, e o número gravado no trace deixaria de descrever o corte que
@@ -537,8 +529,8 @@ it('ai_config.params sobrescreve o limiar; lixo cai no default', () => {
     [SUMMARIZATION_PARAM_KEYS.KEEP_RECENT_MESSAGES]: 6.5,
     [SUMMARIZATION_PARAM_KEYS.TRIGGER_TOKENS]: 6000.5,
   });
-  expect(fractional.keepRecentMessages, SUMMARIZATION_DEFAULTS.keep_recent_messages);
-  expect(fractional.triggerTokens, 6000.5);
+  expect(fractional.keepRecentMessages).toBe(SUMMARIZATION_DEFAULTS.keep_recent_messages);
+  expect(fractional.triggerTokens).toBe(6000.5);
 });
 
 it('o teto do resumo é INTEIRO: `max_tokens` fracionário nem sai daqui', () => {
@@ -549,7 +541,7 @@ it('o teto do resumo é INTEIRO: `max_tokens` fracionário nem sai daqui', () =>
   const fractional = resolveSummarizationPolicy({
     [SUMMARIZATION_PARAM_KEYS.MAX_SUMMARY_TOKENS]: 400.5,
   });
-  expect(fractional.maxSummaryTokens, SUMMARIZATION_DEFAULTS.max_summary_tokens);
+  expect(fractional.maxSummaryTokens).toBe(SUMMARIZATION_DEFAULTS.max_summary_tokens);
   expect(Number.isInteger(fractional.maxSummaryTokens)).toBeTruthy();
 
   // Contraprova do CASO NEGATIVO: inteiro legítimo tem de PASSAR. Uma recusa que
@@ -557,7 +549,7 @@ it('o teto do resumo é INTEIRO: `max_tokens` fracionário nem sai daqui', () =>
   const honest = resolveSummarizationPolicy({
     [SUMMARIZATION_PARAM_KEYS.MAX_SUMMARY_TOKENS]: 900,
   });
-  expect(honest.maxSummaryTokens, 900);
+  expect(honest.maxSummaryTokens).toBe(900);
 });
 
 it('o default do catálogo é o que vale quando ninguém configurou', async () => {
@@ -571,11 +563,11 @@ it('o default do catálogo é o que vale quando ninguém configurou', async () =
 
   // Abaixo de 6.000 tokens (24.000 chars) o default NÃO condensa…
   await runTransform(middleware, longHistory(20));
-  expect(spy.calls.length, 0);
+  expect(spy.calls.length).toBe(0);
 
   // …e acima, condensa. É o mesmo número do catálogo, medido dos dois lados.
   await runTransform(middleware, longHistory(120));
-  expect(spy.calls.length, 1);
+  expect(spy.calls.length).toBe(1);
 });
 
 // ============== HELPERS PUROS ==============
@@ -587,15 +579,15 @@ it('o transcript rotula quem falou — e conta os args de tool call', () => {
     { role: 'tool', toolCallId: 't1', content: '3 tickets' },
   ]);
 
-  expect(rendered.includes('user: oi'), true);
-  expect(rendered.includes('tool result: 3 tickets'), true);
+  expect(rendered.includes('user: oi')).toBe(true);
+  expect(rendered.includes('tool result: 3 tickets')).toBe(true);
   // Args voltam ao histórico na volta seguinte e custam token como qualquer
   // outro conteúdo: ignorá-los subestimaria as conversas com mais voltas.
-  expect(rendered.includes('list_tickets({"limit":5})'), true);
+  expect(rendered.includes('list_tickets({"limit":5})')).toBe(true);
 });
 
 it('a mensagem de resumo é system — o papel que os dois adapters entendem', () => {
   // O adapter Anthropic funde `system` no campo próprio e o OpenAI-compatible a
   // mantém inline: `role:'system'` é o que torna o resumo agnóstico de provider.
-  expect(buildSummaryMessage('x').role, 'system');
+  expect(buildSummaryMessage('x').role).toBe('system');
 });

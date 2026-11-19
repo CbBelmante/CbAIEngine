@@ -10,7 +10,7 @@ sessão. Adendo às regras globais do `~/CLAUDE.md`.
 - **Testes**: Vitest — 7 arquivos, 124 testes
 - **Providers**: 2 adapters built-in (Anthropic + OpenAI-compatible)
 - **Banco**: Agnóstico via `IAiDbAdapter` — adapters concretos por backend
-- **Origem**: Portado do motor de IA do Volan Pulso, desacoplado de Supabase
+- **Origem**: Portado do motor de IA de outro projeto da casa, desacoplado do banco
 
 ## 🏗️ Estrutura do Projeto
 
@@ -163,10 +163,9 @@ npm run lint             # ESLint
 ## 📦 Consumers
 
 1 projeto usa o engine em produção:
-- `~/Workspaces/volan-pulso/` — Volan Pulso (CS Platform — origem do engine)
+- O projeto de origem do engine, noutro repositório da casa
 
 Futuros:
-- `~/Workspaces/BelmarsalBallet/` — Belmarsal Ballet (quando migrar IA)
 
 ## 📚 Referências
 
@@ -182,7 +181,7 @@ Futuros:
 ### Adapter pattern
 - **IAiDbAdapter** — contrato completo de acesso a dados (`src/dbAdapter/dbAdapter.ts`)
 - **createMemoryAdapter** — adapter de memória para testes (`src/dbAdapter/memoryAdapter.ts`)
-- **Referência**: `IDataAdapter` do BelmarsalBallet (`composables/crud/useDataAdapter.ts`) — mesmo padrão
+- **Referência**: o `IDataAdapter` de outro projeto da casa — mesmo padrão
 
 ### Decisões arquiteturais
 - Zero fallback silencioso
@@ -194,7 +193,7 @@ Futuros:
 
 ### Plano de evolução
 - `~/Workspaces/plano-tenantai.html` — plano de extração completo
-- `~/Workspaces/pulso-ai-analise.html` — análise técnica do engine
+- O documento de análise técnica do engine, fora deste repositório
 
 ## 🔮 Roadmap
 

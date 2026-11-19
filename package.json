@@ -59,8 +59,14 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^26.6.2",
+    "@types/pg": "^8.23.1",
+    "kysely": "^0.28.20",
+    "pg": "^8.23.1",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
+  },
+  "peerDependencies": {
+    "kysely": "^0.28.20"
   }
 }

@@ -38,26 +38,26 @@ import type {
 
 it('ITextPart - discriminated by type "text"', () => {
   const part: ITextPart = { type: 'text', text: 'hello' };
-  expect(part.type, 'text');
-  expect(part.text, 'hello');
+  expect(part.type).toBe('text');
+  expect(part.text).toBe('hello');
 });
 
 it('IReasoningPart - discriminated by type "reasoning"', () => {
   const part: IReasoningPart = { type: 'reasoning', text: 'chain of thought' };
-  expect(part.type, 'reasoning');
-  expect(part.text, 'chain of thought');
+  expect(part.type).toBe('reasoning');
+  expect(part.text).toBe('chain of thought');
 });
 
 it('IFilePart - discriminated by type "file"', () => {
   const part: IFilePart = { type: 'file', mimeType: 'image/png', url: 'https://example.com/img.png' };
-  expect(part.type, 'file');
-  expect(part.mimeType, 'image/png');
-  expect(part.name, undefined);
+  expect(part.type).toBe('file');
+  expect(part.mimeType).toBe('image/png');
+  expect(part.name).toBeUndefined();
 });
 
 it('IFilePart - optional name field', () => {
   const part: IFilePart = { type: 'file', mimeType: 'application/pdf', url: '/doc.pdf', name: 'report.pdf' };
-  expect(part.name, 'report.pdf');
+  expect(part.name).toBe('report.pdf');
 });
 
 it('NMessagePart - exhaustive switch on discriminator', () => {
@@ -75,21 +75,21 @@ it('NMessagePart - exhaustive switch on discriminator', () => {
       case 'file': types.push('file'); break;
     }
   }
-  expect(types, ['text', 'reasoning', 'file']);
+  expect(types).toEqual(['text', 'reasoning', 'file']);
 });
 
 // ============== NEUTRAL TYPES ==============
 
 it('NMessage - system role accepts string content', () => {
   const msg: NMessage = { role: 'system', content: 'You are helpful.' };
-  expect(msg.role, 'system');
-  expect(msg.content, 'You are helpful.');
+  expect(msg.role).toBe('system');
+  expect(msg.content).toBe('You are helpful.');
 });
 
 it('NMessage - user role accepts parts array', () => {
   const msg: NMessage = { role: 'user', content: [{ type: 'text', text: 'hello' }] };
-  expect(msg.role, 'user');
-  expect(Array.isArray(msg.content), true);
+  expect(msg.role).toBe('user');
+  expect(Array.isArray(msg.content)).toBe(true);
 });
 
 it('NMessage - assistant role with toolCalls', () => {
@@ -97,7 +97,7 @@ it('NMessage - assistant role with toolCalls', () => {
     role: 'assistant',
     toolCalls: [{ id: 'tc_1', name: 'search', args: { query: 'test' } }],
   };
-  expect(msg.role, 'assistant');
+  expect(msg.role).toBe('assistant');
   expect(msg.toolCalls?.length, 1);
 });
 
@@ -106,19 +106,19 @@ it('NMessage - assistant role without content (valid)', () => {
     role: 'assistant',
     toolCalls: [{ id: 'tc_1', name: 'lookup', args: {} }],
   };
-  expect(msg.content, undefined);
+  expect(msg.content).toBeUndefined();
 });
 
 it('NMessage - tool role with correlation id', () => {
   const msg: NMessage = { role: 'tool', toolCallId: 'tc_1', content: '{"result": 42}' };
-  expect(msg.role, 'tool');
+  expect(msg.role).toBe('tool');
   expect(msg.toolCallId, 'tc_1');
 });
 
 it('NToolCall - args is always object, never string', () => {
   const tc: NToolCall = { id: 'tc_1', name: 'search', args: { query: 'test', limit: 10 } };
-  expect(typeof tc.args, 'object');
-  expect(tc.args.query, 'test');
+  expect(typeof tc.args).toBe('object');
+  expect(tc.args.query).toBe('test');
 });
 
 it('NUsage - all three token counts present', () => {
@@ -133,7 +133,7 @@ it('NResponse - finishReason restricted to stop|tool', () => {
     finishReason: 'stop',
     usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
   };
-  expect(stopRes.finishReason, 'stop');
+  expect(stopRes.finishReason).toBe('stop');
 
   const toolRes: NResponse = {
     text: '',
@@ -141,7 +141,7 @@ it('NResponse - finishReason restricted to stop|tool', () => {
     finishReason: 'tool',
     usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
   };
-  expect(toolRes.finishReason, 'tool');
+  expect(toolRes.finishReason).toBe('tool');
 });
 
 it('NResponse - no provider-specific fields leak', () => {
@@ -152,24 +152,24 @@ it('NResponse - no provider-specific fields leak', () => {
     usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
   };
   const keys = Object.keys(res).sort();
-  expect(keys, ['finishReason', 'text', 'toolCalls', 'usage']);
+  expect(keys).toEqual(['finishReason', 'text', 'toolCalls', 'usage']);
 });
 
 // ============== TOOLS ==============
 
 it('IToolDef - category restricted to read|suggest|execute', () => {
   const categories: IToolDef['category'][] = ['read', 'suggest', 'execute'];
-  expect(categories.length, 3);
+  expect(categories.length).toBe(3);
 });
 
 it('IToolOutput - isError defaults to undefined', () => {
   const output: IToolOutput = { content: 'success' };
-  expect(output.isError, undefined);
+  expect(output.isError).toBeUndefined();
 });
 
 it('IToolOutput - isError can be true', () => {
   const output: IToolOutput = { content: 'failed', isError: true };
-  expect(output.isError, true);
+  expect(output.isError).toBe(true);
 });
 
 // ============== PROVIDER & CHAT ==============
@@ -184,7 +184,7 @@ it('IChatRequest - carries resolved apiKey, not env reference', () => {
     apiKey: 'sk-resolved-key',
   };
   expect(req.apiKey);
-  expect(typeof req.apiKey, 'string');
+  expect(typeof req.apiKey).toBe('string');
 });
 
 it('IProvider - envKey is a variable name, not a secret', () => {
@@ -195,8 +195,8 @@ it('IProvider - envKey is a variable name, not a secret', () => {
     baseUrl: 'https://gateway.example.com',
     envKey: 'AI_GATEWAY_API_KEY',
   };
-  expect(provider.envKey, 'AI_GATEWAY_API_KEY');
-  expect(provider.id, 'ai-gateway');
+  expect(provider.envKey).toBe('AI_GATEWAY_API_KEY');
+  expect(provider.id).toBe('ai-gateway');
 });
 
 it('IEmbedResponse - embeddings are number arrays', () => {
@@ -204,34 +204,34 @@ it('IEmbedResponse - embeddings are number arrays', () => {
     embeddings: [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
     usage: { totalTokens: 20 },
   };
-  expect(res.embeddings.length, 2);
-  expect(res.embeddings[0].length, 3);
+  expect(res.embeddings.length).toBe(2);
+  expect(res.embeddings[0].length).toBe(3);
 });
 
 // ============== MIDDLEWARE ==============
 
 it('IMiddleware - phase restricted to three values', () => {
   const phases: IMiddleware['phase'][] = ['pre-context', 'pre-model', 'post-model'];
-  expect(phases.length, 3);
+  expect(phases.length).toBe(3);
 });
 
 it('ICheckResult - ok:true means pass', () => {
   const pass: ICheckResult = { ok: true };
-  expect(pass.ok, true);
-  expect(pass.message, undefined);
+  expect(pass.ok).toBe(true);
+  expect(pass.message).toBeUndefined();
 });
 
 it('ICheckResult - ok:false carries message', () => {
   const fail: ICheckResult = { ok: false, message: 'PII detected' };
-  expect(fail.ok, false);
-  expect(fail.message, 'PII detected');
+  expect(fail.ok).toBe(false);
+  expect(fail.message).toBe('PII detected');
 });
 
 // ============== HOOKS ==============
 
 it('IAgentHooks - all callbacks are optional', () => {
   const hooks: IAgentHooks = {};
-  expect(Object.keys(hooks).length, 0);
+  expect(Object.keys(hooks).length).toBe(0);
 });
 
 it('IAgentHooks - individual hook can be set', () => {
@@ -240,7 +240,7 @@ it('IAgentHooks - individual hook can be set', () => {
     onRunStart: () => { called = true; },
   };
   hooks.onRunStart?.('run_1', {} as IAgentConfig);
-  expect(called, true);
+  expect(called).toBe(true);
 });
 
 // ============== PROMPT ==============
@@ -253,10 +253,11 @@ it('IPromptTemplate - base + conditional sections', () => {
       { key: 'company', builder: (ctx) => `Company: ${ctx.agent}`, when: (ctx) => ctx.agent === 'engine-cs' },
     ],
   };
-  expect(template.sections.length, 2);
-  expect(template.sections[0].builder({ agent: 'engine-cs', userId: 'u1' }), 'I am CbAIEngine.');
-  expect(template.sections[1].when?.({ agent: 'engine-cs', userId: 'u1' }), true);
-  expect(template.sections[1].when?.({ agent: 'other', userId: 'u1' }), false);
+  expect(template.sections.length).toBe(2);
+  expect(template.sections[0].builder({ agent: 'engine-cs', userId: 'u1' }))
+    .toBe('I am CbAIEngine.');
+  expect(template.sections[1].when?.({ agent: 'engine-cs', userId: 'u1' })).toBe(true);
+  expect(template.sections[1].when?.({ agent: 'other', userId: 'u1' })).toBe(false);
 });
 
 // ============== CONFIG & RESULT ==============
@@ -267,19 +268,19 @@ it('IAgentConfig - model string follows provider:model format', () => {
     systemPrompt: 'You are helpful.',
   };
   const [provider, model] = config.model.split(':');
-  expect(provider, 'ai-gateway');
-  expect(model, 'qwen3.5-27b');
+  expect(provider).toBe('ai-gateway');
+  expect(model).toBe('qwen3.5-27b');
 });
 
 it('IAgentConfig - systemPrompt accepts string or template', () => {
   const simple: IAgentConfig = { model: 'anthropic:claude-haiku-4-5-20251001', systemPrompt: 'Be helpful.' };
-  expect(typeof simple.systemPrompt, 'string');
+  expect(typeof simple.systemPrompt).toBe('string');
 
   const templated: IAgentConfig = {
     model: 'anthropic:claude-haiku-4-5-20251001',
     systemPrompt: { base: 'Be helpful.', sections: [] },
   };
-  expect(typeof templated.systemPrompt, 'object');
+  expect(typeof templated.systemPrompt).toBe('object');
 });
 
 /**
@@ -292,13 +293,13 @@ it('IAgentConfig - systemPrompt accepts string or template', () => {
 it('IAgentPreset - behaviour only: satisfied with NO model field at all', () => {
   const preset: IAgentPreset = {
     name: 'engine-cs',
-    description: 'Assistente CS do Volan CbAIEngine',
+    description: 'Assistente de atendimento do CbAIEngine',
     systemPrompt: 'You are the CbAIEngine assistant.',
     defaults: { maxTokens: 1500 },
   };
-  expect(preset.name, 'engine-cs');
-  expect('defaultModel' in preset, false);
-  expect(preset.defaults?.maxTokens, 1500);
+  expect(preset.name).toBe('engine-cs');
+  expect('defaultModel' in preset).toBe(false);
+  expect(preset.defaults?.maxTokens).toBe(1500);
 });
 
 it('IRunUsage - extends NUsage with provider metadata', () => {
@@ -312,9 +313,9 @@ it('IRunUsage - extends NUsage with provider metadata', () => {
     latencyMs: 1200,
     invocations: 2,
   };
-  expect(usage.provider, 'ai-gateway');
-  expect(usage.invocations, 2);
-  expect(usage.costUsd, 0.0035);
+  expect(usage.provider).toBe('ai-gateway');
+  expect(usage.invocations).toBe(2);
+  expect(usage.costUsd).toBe(0.0035);
 });
 
 it('IAgentResult - metadata is open-ended, no domain leakage', () => {
@@ -328,7 +329,7 @@ it('IAgentResult - metadata is open-ended, no domain leakage', () => {
     metadata: { contextUpdates: [], suggestions: [] },
   };
   expect(result.metadata);
-  expect(result.structured, undefined);
+  expect(result.structured).toBeUndefined();
 });
 
 it('IModelPricing - cost calculation follows documented formula', () => {
@@ -341,7 +342,7 @@ it('IModelPricing - cost calculation follows documented formula', () => {
   const prompt = 500;
   const completion = 200;
   const cost = (prompt / 1000) * pricing.inputPer1k + (completion / 1000) * pricing.outputPer1k;
-  expect(cost, 0.0015);
+  expect(cost).toBe(0.0015);
 });
 
 // ============== CONTRAPROVA — union exaustiva ==============
@@ -360,7 +361,7 @@ it('NMessagePart union - switch exhausts all variants', () => {
     }
   };
 
-  expect(checkExhaustion({ type: 'text', text: 'a' }), 'text');
-  expect(checkExhaustion({ type: 'reasoning', text: 'b' }), 'reasoning');
-  expect(checkExhaustion({ type: 'file', mimeType: 'x/y', url: '/z' }), 'file');
+  expect(checkExhaustion({ type: 'text', text: 'a' })).toBe('text');
+  expect(checkExhaustion({ type: 'reasoning', text: 'b' })).toBe('reasoning');
+  expect(checkExhaustion({ type: 'file', mimeType: 'x/y', url: '/z' })).toBe('file');
 });

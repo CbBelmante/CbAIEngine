@@ -18,69 +18,69 @@ import {
 } from '../src/definitions/knowledgeVocabulary';
 
 it('getSyncStatusDef - valores válidos', () => {
-  expect(getSyncStatusDef('pending')?.value, 'pending');
-  expect(getSyncStatusDef('processing')?.value, 'processing');
-  expect(getSyncStatusDef('synced')?.value, 'synced');
-  expect(getSyncStatusDef('failed')?.value, 'failed');
+  expect(getSyncStatusDef('pending')?.value).toBe('pending');
+  expect(getSyncStatusDef('processing')?.value).toBe('processing');
+  expect(getSyncStatusDef('synced')?.value).toBe('synced');
+  expect(getSyncStatusDef('failed')?.value).toBe('failed');
 });
 
 it('getSyncStatusDef - valor inválido', () => {
   // @ts-expect-error: teste de valor inválido
-  expect(getSyncStatusDef('invalid'), undefined);
+  expect(getSyncStatusDef('invalid')).toBeUndefined();
 });
 
 it('getContentFormatDef - valores válidos', () => {
-  expect(getContentFormatDef('markdown')?.value, 'markdown');
-  expect(getContentFormatDef('text')?.value, 'text');
+  expect(getContentFormatDef('markdown')?.value).toBe('markdown');
+  expect(getContentFormatDef('text')?.value).toBe('text');
 });
 
 it('getVisibilityDef - valores válidos', () => {
-  expect(getVisibilityDef('internal')?.value, 'internal');
-  expect(getVisibilityDef('portal')?.value, 'portal');
+  expect(getVisibilityDef('internal')?.value).toBe('internal');
+  expect(getVisibilityDef('portal')?.value).toBe('portal');
 });
 
 it('isSyncFinal - estados finais', () => {
-  expect(isSyncFinal('synced'), true);
-  expect(isSyncFinal('failed'), true);
-  expect(isSyncFinal('pending'), false);
-  expect(isSyncFinal('processing'), false);
+  expect(isSyncFinal('synced')).toBe(true);
+  expect(isSyncFinal('failed')).toBe(true);
+  expect(isSyncFinal('pending')).toBe(false);
+  expect(isSyncFinal('processing')).toBe(false);
 });
 
 it('isSynced', () => {
-  expect(isSynced('synced'), true);
-  expect(isSynced('pending'), false);
-  expect(isSynced('processing'), false);
-  expect(isSynced('failed'), false);
+  expect(isSynced('synced')).toBe(true);
+  expect(isSynced('pending')).toBe(false);
+  expect(isSynced('processing')).toBe(false);
+  expect(isSynced('failed')).toBe(false);
 });
 
 it('isSyncFailed', () => {
-  expect(isSyncFailed('failed'), true);
-  expect(isSyncFailed('synced'), false);
-  expect(isSyncFailed('pending'), false);
-  expect(isSyncFailed('processing'), false);
+  expect(isSyncFailed('failed')).toBe(true);
+  expect(isSyncFailed('synced')).toBe(false);
+  expect(isSyncFailed('pending')).toBe(false);
+  expect(isSyncFailed('processing')).toBe(false);
 });
 
 it('isSyncInProgress', () => {
-  expect(isSyncInProgress('pending'), true);
-  expect(isSyncInProgress('processing'), true);
-  expect(isSyncInProgress('synced'), false);
-  expect(isSyncInProgress('failed'), false);
+  expect(isSyncInProgress('pending')).toBe(true);
+  expect(isSyncInProgress('processing')).toBe(true);
+  expect(isSyncInProgress('synced')).toBe(false);
+  expect(isSyncInProgress('failed')).toBe(false);
 });
 
 it('isVisibleToPortal', () => {
-  expect(isVisibleToPortal('portal'), true);
-  expect(isVisibleToPortal('internal'), false);
+  expect(isVisibleToPortal('portal')).toBe(true);
+  expect(isVisibleToPortal('internal')).toBe(false);
 });
 
 it('isInternalOnly', () => {
-  expect(isInternalOnly('internal'), true);
-  expect(isInternalOnly('portal'), false);
+  expect(isInternalOnly('internal')).toBe(true);
+  expect(isInternalOnly('portal')).toBe(false);
 });
 
 it('KNOWLEDGE_DEFAULTS - valores esperados', () => {
-  expect(KNOWLEDGE_DEFAULTS.content_format, 'markdown');
-  expect(KNOWLEDGE_DEFAULTS.sync_status, 'pending');
-  expect(KNOWLEDGE_DEFAULTS.priority, 0);
-  expect(KNOWLEDGE_DEFAULTS.is_system, false);
-  expect(KNOWLEDGE_DEFAULTS.visibility, 'internal');
+  expect(KNOWLEDGE_DEFAULTS.content_format).toBe('markdown');
+  expect(KNOWLEDGE_DEFAULTS.sync_status).toBe('pending');
+  expect(KNOWLEDGE_DEFAULTS.priority).toBe(0);
+  expect(KNOWLEDGE_DEFAULTS.is_system).toBe(false);
+  expect(KNOWLEDGE_DEFAULTS.visibility).toBe('internal');
 });

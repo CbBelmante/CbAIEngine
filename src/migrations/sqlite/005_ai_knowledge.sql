@@ -14,6 +14,9 @@
 --- Depende de: nada (categorias e entradas são auto-contidas)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_knowledge_categories
@@ -27,8 +30,11 @@ CREATE TABLE IF NOT EXISTS ai_knowledge_categories (
   slug            TEXT NOT NULL UNIQUE,
   description     TEXT,
   is_system       INTEGER NOT NULL DEFAULT 0,
+  -- A categoria pode pender de outra: é o que dá árvore ao acervo.
+  parent_id       TEXT REFERENCES ai_knowledge_categories(id) ON DELETE SET NULL,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -45,23 +51,6 @@ BEGIN UPDATE ai_knowledge_categories SET deleted_at = datetime('now') WHERE id =
 CREATE TRIGGER IF NOT EXISTS ai_knowledge_categories_restore AFTER UPDATE OF active ON ai_knowledge_categories
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_knowledge_categories SET deleted_at = NULL WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_categories_audit_insert AFTER INSERT ON ai_knowledge_categories
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_categories', NEW.id, 'INSERT',
-    json_object('name', NEW.name, 'slug', NEW.slug, 'is_system', NEW.is_system),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_categories_audit_update AFTER UPDATE ON ai_knowledge_categories
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_categories', NEW.id, 'UPDATE',
-    json_object('name', OLD.name, 'slug', OLD.slug, 'active', OLD.active),
-    json_object('name', NEW.name, 'slug', NEW.slug, 'active', NEW.active),
-    datetime('now'));
-END;
 
 
 -- =============================================================================
@@ -103,6 +92,7 @@ CREATE TABLE IF NOT EXISTS ai_knowledge_entries (
   tenant_id       TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -126,19 +116,3 @@ CREATE TRIGGER IF NOT EXISTS ai_knowledge_entries_restore AFTER UPDATE OF active
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_knowledge_entries SET deleted_at = NULL WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_entries_audit_insert AFTER INSERT ON ai_knowledge_entries
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_entries', NEW.id, 'INSERT',
-    json_object('title', NEW.title, 'category_id', NEW.category_id, 'visibility', NEW.visibility),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_entries_audit_update AFTER UPDATE ON ai_knowledge_entries
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_entries', NEW.id, 'UPDATE',
-    json_object('title', OLD.title, 'sync_status', OLD.sync_status, 'active', OLD.active),
-    json_object('title', NEW.title, 'sync_status', NEW.sync_status, 'active', NEW.active),
-    datetime('now'));
-END;

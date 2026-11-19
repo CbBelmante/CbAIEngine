@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS ai_agent_runs (
   status          TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'ok', 'error')),
   error           TEXT,
   started_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  finished_at     TEXT
+  finished_at     TEXT,
+  -- O handle da chamada assíncrona, quando o run saiu de um agendamento.
+  net_request_id  INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_agent_runs_started ON ai_agent_runs(started_at DESC);
@@ -45,6 +47,9 @@ CREATE TABLE IF NOT EXISTS ai_invocations (
   provider          TEXT NOT NULL,
   model             TEXT NOT NULL,
   prompt_tokens     INTEGER,
+  -- ⚠️ NULO É «o provedor não informa»; zero é «informa e não aproveitou».
+  -- Colapsar os dois faz o painel dizer que nada cacheou onde ninguém mediu.
+  cached_prompt_tokens INTEGER,
   completion_tokens INTEGER,
   total_tokens      INTEGER,
   cost_usd          REAL,

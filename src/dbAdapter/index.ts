@@ -15,3 +15,6 @@ export type {
   IAiToolMessageInput,
 } from './types';
 export { createMemoryAdapter } from './memoryAdapter';
+export { createKyselyAdapter } from './kyselyAdapter';
+export type { IKyselyAdapterOptions, TEngineDialect } from './kyselyAdapter';
+export type { IEngineDatabase } from './kyselyTables';

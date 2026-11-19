@@ -18,6 +18,9 @@
 --- Depende de: nada (primeira migration do AI engine)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_providers
@@ -32,13 +35,33 @@ CREATE TABLE IF NOT EXISTS ai_providers (
   base_url        TEXT,
   protocol        TEXT NOT NULL CHECK (protocol IN ('anthropic', 'openai-compatible')),
   enabled         INTEGER NOT NULL DEFAULT 1,
+
+  -- POLÍTICA DE ESPERA QUANDO O PROVEDOR RECUSA POR EXCESSO (HTTP 429)
+  --
+  -- Mora no PROVEDOR, e não no agente, porque o teto é da CONTA: seis agentes
+  -- apontando para a mesma casa disputam a mesma cota por minuto.
+  --
+  -- ⚠️ SÃO TETO, NÃO DURAÇÃO: o motor espera o que o provedor PEDIU, e usa
+  -- estes números só para decidir se topa esperar tanto. Lidos como duração,
+  -- quem quisesse resposta rápida os baixaria sem notar que o efeito real é
+  -- DESISTIR mais cedo.
+  retry_max_attempts             INTEGER NOT NULL DEFAULT 3,
+  retry_max_wait_interactive_ms  INTEGER NOT NULL DEFAULT 10000,
+  retry_max_wait_batch_ms        INTEGER NOT NULL DEFAULT 60000,
+
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
   updated_by      TEXT,
-  CHECK (base_url IS NOT NULL OR NOT enabled)
+  CHECK (base_url IS NOT NULL OR NOT enabled),
+  CHECK (retry_max_attempts BETWEEN 0 AND 10),
+  -- Espera negativa não existe, e zero desliga a espera daquele eixo. Cinco
+  -- minutos é onde insistir virou fila: a decisão passa a ser de quem agenda.
+  CHECK (retry_max_wait_interactive_ms BETWEEN 0 AND 300000
+         AND retry_max_wait_batch_ms BETWEEN 0 AND 300000)
 );
 
 CREATE TRIGGER IF NOT EXISTS ai_providers_updated_at AFTER UPDATE ON ai_providers
@@ -51,23 +74,6 @@ BEGIN UPDATE ai_providers SET deleted_at = datetime('now') WHERE id = NEW.id; EN
 CREATE TRIGGER IF NOT EXISTS ai_providers_restore AFTER UPDATE OF active ON ai_providers
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_providers SET deleted_at = NULL WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_providers_audit_insert AFTER INSERT ON ai_providers
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_providers', NEW.id, 'INSERT',
-    json_object('slug', NEW.slug, 'name', NEW.name, 'protocol', NEW.protocol),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_providers_audit_update AFTER UPDATE ON ai_providers
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_providers', NEW.id, 'UPDATE',
-    json_object('slug', OLD.slug, 'name', OLD.name, 'enabled', OLD.enabled, 'active', OLD.active),
-    json_object('slug', NEW.slug, 'name', NEW.name, 'enabled', NEW.enabled, 'active', NEW.active),
-    datetime('now'));
-END;
 
 
 -- =============================================================================
@@ -87,6 +93,7 @@ CREATE TABLE IF NOT EXISTS ai_config (
   enabled         INTEGER NOT NULL DEFAULT 1,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -111,23 +118,6 @@ CREATE TRIGGER IF NOT EXISTS ai_config_restore AFTER UPDATE OF active ON ai_conf
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_config SET deleted_at = NULL WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_config_audit_insert AFTER INSERT ON ai_config
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_config', NEW.id, 'INSERT',
-    json_object('agent', NEW.agent, 'provider', NEW.provider, 'model', NEW.model),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_config_audit_update AFTER UPDATE ON ai_config
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_config', NEW.id, 'UPDATE',
-    json_object('agent', OLD.agent, 'provider', OLD.provider, 'model', OLD.model, 'enabled', OLD.enabled),
-    json_object('agent', NEW.agent, 'provider', NEW.provider, 'model', NEW.model, 'enabled', NEW.enabled),
-    datetime('now'));
-END;
-
 
 -- =============================================================================
 -- TABELA: ai_model_pricing
@@ -144,6 +134,7 @@ CREATE TABLE IF NOT EXISTS ai_model_pricing (
   currency        TEXT NOT NULL DEFAULT 'USD',
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -153,23 +144,6 @@ CREATE TABLE IF NOT EXISTS ai_model_pricing (
 
 CREATE TRIGGER IF NOT EXISTS ai_model_pricing_updated_at AFTER UPDATE ON ai_model_pricing
 BEGIN UPDATE ai_model_pricing SET updated_at = datetime('now') WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_model_pricing_audit_insert AFTER INSERT ON ai_model_pricing
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_model_pricing', NEW.id, 'INSERT',
-    json_object('provider', NEW.provider, 'model', NEW.model, 'input_per_1k', NEW.input_per_1k, 'output_per_1k', NEW.output_per_1k),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_model_pricing_audit_update AFTER UPDATE ON ai_model_pricing
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_model_pricing', NEW.id, 'UPDATE',
-    json_object('provider', OLD.provider, 'model', OLD.model, 'input_per_1k', OLD.input_per_1k),
-    json_object('provider', NEW.provider, 'model', NEW.model, 'input_per_1k', NEW.input_per_1k),
-    datetime('now'));
-END;
 
 
 -- ###########################################################################
@@ -185,6 +159,9 @@ END;
 --- Depende de: 001_ai_config.sql (ai_providers)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_credentials
@@ -201,6 +178,7 @@ CREATE TABLE IF NOT EXISTS ai_credentials (
   rotated_at      TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -219,23 +197,6 @@ CREATE TRIGGER IF NOT EXISTS ai_credentials_updated_at AFTER UPDATE ON ai_creden
 BEGIN UPDATE ai_credentials SET updated_at = datetime('now') WHERE id = NEW.id; END;
 
 -- Audit: NÃO grava api_key (deny-list). Registra QUE mudou, sem o valor.
-CREATE TRIGGER IF NOT EXISTS ai_credentials_audit_insert AFTER INSERT ON ai_credentials
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_credentials', NEW.id, 'INSERT',
-    json_object('provider', NEW.provider, 'tenant_id', NEW.tenant_id, 'last4', NEW.last4),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_credentials_audit_update AFTER UPDATE ON ai_credentials
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_credentials', NEW.id, 'UPDATE',
-    json_object('provider', OLD.provider, 'last4', OLD.last4),
-    json_object('provider', NEW.provider, 'last4', NEW.last4),
-    datetime('now'));
-END;
-
 
 -- =============================================================================
 -- VIEW: ai_credentials_view
@@ -247,13 +208,66 @@ CREATE VIEW IF NOT EXISTS ai_credentials_view AS
   FROM ai_credentials
   WHERE active = 1;
 
-
 -- ###########################################################################
--- 003_ai_runs.sql
+-- 003_ai_cron.sql
 -- ###########################################################################
 
 -- =============================================================================
--- Migration 003 — Execuções, invocações e trace do agente
+-- Migration 003 — Jobs de cron
+-- =============================================================================
+--- Registro de jobs agendados (ai_cron_jobs). Fonte de verdade do agendamento.
+--- Em Postgres, a 034 materializa cada linha em cron.schedule por trigger.
+--- Em SQLite/D1, o agendamento é feito pelo app (cron externo, Cloudflare Cron
+--- Triggers, ou scheduler do runtime).
+--- Depende de: nada
+-- =============================================================================
+
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
+
+-- =============================================================================
+-- TABELA: ai_cron_jobs
+-- Registro de jobs de cron e fonte de verdade do agendamento.
+-- enabled=false desagenda e barra o disparo.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS ai_cron_jobs (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL UNIQUE,
+  schedule        TEXT NOT NULL,
+  target_function TEXT NOT NULL,
+  agent           TEXT NOT NULL DEFAULT 'default',
+  payload         TEXT NOT NULL DEFAULT '{}',
+  enabled         INTEGER NOT NULL DEFAULT 1,
+  last_run_at     TEXT,
+  active          INTEGER NOT NULL DEFAULT 1,
+  deleted_at      TEXT,
+  deleted_by      TEXT,
+  created_at      TEXT DEFAULT (datetime('now')),
+  updated_at      TEXT DEFAULT (datetime('now')),
+  created_by      TEXT,
+  updated_by      TEXT
+);
+
+CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_updated_at AFTER UPDATE ON ai_cron_jobs
+BEGIN UPDATE ai_cron_jobs SET updated_at = datetime('now') WHERE id = NEW.id; END;
+
+CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_soft_delete AFTER UPDATE OF active ON ai_cron_jobs
+  WHEN OLD.active = 1 AND NEW.active = 0
+BEGIN UPDATE ai_cron_jobs SET deleted_at = datetime('now') WHERE id = NEW.id; END;
+
+CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_restore AFTER UPDATE OF active ON ai_cron_jobs
+  WHEN OLD.active = 0 AND NEW.active = 1
+BEGIN UPDATE ai_cron_jobs SET deleted_at = NULL WHERE id = NEW.id; END;
+
+
+-- ###########################################################################
+-- 004_ai_runs.sql
+-- ###########################################################################
+
+-- =============================================================================
+-- Migration 004 — Execuções, invocações e trace do agente
 -- =============================================================================
 --- Registro de execuções (ai_agent_runs), invocações de modelo (ai_invocations)
 --- e trace passo a passo (ai_run_steps).
@@ -277,7 +291,9 @@ CREATE TABLE IF NOT EXISTS ai_agent_runs (
   status          TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'ok', 'error')),
   error           TEXT,
   started_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  finished_at     TEXT
+  finished_at     TEXT,
+  -- O handle da chamada assíncrona, quando o run saiu de um agendamento.
+  net_request_id  INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_agent_runs_started ON ai_agent_runs(started_at DESC);
@@ -299,6 +315,9 @@ CREATE TABLE IF NOT EXISTS ai_invocations (
   provider          TEXT NOT NULL,
   model             TEXT NOT NULL,
   prompt_tokens     INTEGER,
+  -- ⚠️ NULO É «o provedor não informa»; zero é «informa e não aproveitou».
+  -- Colapsar os dois faz o painel dizer que nada cacheou onde ninguém mediu.
+  cached_prompt_tokens INTEGER,
   completion_tokens INTEGER,
   total_tokens      INTEGER,
   cost_usd          REAL,
@@ -332,13 +351,12 @@ CREATE TABLE IF NOT EXISTS ai_run_steps (
 
 CREATE INDEX IF NOT EXISTS idx_ai_run_steps_run ON ai_run_steps(run_id, seq);
 
-
 -- ###########################################################################
--- 004_ai_knowledge.sql
+-- 005_ai_knowledge.sql
 -- ###########################################################################
 
 -- =============================================================================
--- Migration 004 — Base de conhecimento (RAG)
+-- Migration 005 — Base de conhecimento (RAG)
 -- =============================================================================
 --- Categorias curadas (ai_knowledge_categories) e entradas com embedding
 --- vetorial (ai_knowledge_entries). Ingestão assíncrona:
@@ -353,6 +371,9 @@ CREATE INDEX IF NOT EXISTS idx_ai_run_steps_run ON ai_run_steps(run_id, seq);
 --- Depende de: nada (categorias e entradas são auto-contidas)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_knowledge_categories
@@ -366,8 +387,11 @@ CREATE TABLE IF NOT EXISTS ai_knowledge_categories (
   slug            TEXT NOT NULL UNIQUE,
   description     TEXT,
   is_system       INTEGER NOT NULL DEFAULT 0,
+  -- A categoria pode pender de outra: é o que dá árvore ao acervo.
+  parent_id       TEXT REFERENCES ai_knowledge_categories(id) ON DELETE SET NULL,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -384,23 +408,6 @@ BEGIN UPDATE ai_knowledge_categories SET deleted_at = datetime('now') WHERE id =
 CREATE TRIGGER IF NOT EXISTS ai_knowledge_categories_restore AFTER UPDATE OF active ON ai_knowledge_categories
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_knowledge_categories SET deleted_at = NULL WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_categories_audit_insert AFTER INSERT ON ai_knowledge_categories
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_categories', NEW.id, 'INSERT',
-    json_object('name', NEW.name, 'slug', NEW.slug, 'is_system', NEW.is_system),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_categories_audit_update AFTER UPDATE ON ai_knowledge_categories
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_categories', NEW.id, 'UPDATE',
-    json_object('name', OLD.name, 'slug', OLD.slug, 'active', OLD.active),
-    json_object('name', NEW.name, 'slug', NEW.slug, 'active', NEW.active),
-    datetime('now'));
-END;
 
 
 -- =============================================================================
@@ -442,6 +449,7 @@ CREATE TABLE IF NOT EXISTS ai_knowledge_entries (
   tenant_id       TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -465,90 +473,6 @@ CREATE TRIGGER IF NOT EXISTS ai_knowledge_entries_restore AFTER UPDATE OF active
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_knowledge_entries SET deleted_at = NULL WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_entries_audit_insert AFTER INSERT ON ai_knowledge_entries
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_entries', NEW.id, 'INSERT',
-    json_object('title', NEW.title, 'category_id', NEW.category_id, 'visibility', NEW.visibility),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_knowledge_entries_audit_update AFTER UPDATE ON ai_knowledge_entries
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_knowledge_entries', NEW.id, 'UPDATE',
-    json_object('title', OLD.title, 'sync_status', OLD.sync_status, 'active', OLD.active),
-    json_object('title', NEW.title, 'sync_status', NEW.sync_status, 'active', NEW.active),
-    datetime('now'));
-END;
-
-
--- ###########################################################################
--- 005_ai_cron.sql
--- ###########################################################################
-
--- =============================================================================
--- Migration 005 — Jobs de cron
--- =============================================================================
---- Registro de jobs agendados (ai_cron_jobs). Fonte de verdade do agendamento.
---- Em Postgres, a 034 materializa cada linha em cron.schedule por trigger.
---- Em SQLite/D1, o agendamento é feito pelo app (cron externo, Cloudflare Cron
---- Triggers, ou scheduler do runtime).
---- Depende de: nada
--- =============================================================================
-
-
--- =============================================================================
--- TABELA: ai_cron_jobs
--- Registro de jobs de cron e fonte de verdade do agendamento.
--- enabled=false desagenda e barra o disparo.
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS ai_cron_jobs (
-  id              TEXT PRIMARY KEY,
-  name            TEXT NOT NULL UNIQUE,
-  schedule        TEXT NOT NULL,
-  target_function TEXT NOT NULL,
-  agent           TEXT NOT NULL DEFAULT 'default',
-  payload         TEXT NOT NULL DEFAULT '{}',
-  enabled         INTEGER NOT NULL DEFAULT 1,
-  last_run_at     TEXT,
-  active          INTEGER NOT NULL DEFAULT 1,
-  deleted_at      TEXT,
-  created_at      TEXT DEFAULT (datetime('now')),
-  updated_at      TEXT DEFAULT (datetime('now')),
-  created_by      TEXT,
-  updated_by      TEXT
-);
-
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_updated_at AFTER UPDATE ON ai_cron_jobs
-BEGIN UPDATE ai_cron_jobs SET updated_at = datetime('now') WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_soft_delete AFTER UPDATE OF active ON ai_cron_jobs
-  WHEN OLD.active = 1 AND NEW.active = 0
-BEGIN UPDATE ai_cron_jobs SET deleted_at = datetime('now') WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_restore AFTER UPDATE OF active ON ai_cron_jobs
-  WHEN OLD.active = 0 AND NEW.active = 1
-BEGIN UPDATE ai_cron_jobs SET deleted_at = NULL WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_audit_insert AFTER INSERT ON ai_cron_jobs
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_cron_jobs', NEW.id, 'INSERT',
-    json_object('name', NEW.name, 'schedule', NEW.schedule, 'target_function', NEW.target_function),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_cron_jobs_audit_update AFTER UPDATE ON ai_cron_jobs
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_cron_jobs', NEW.id, 'UPDATE',
-    json_object('name', OLD.name, 'schedule', OLD.schedule, 'enabled', OLD.enabled, 'active', OLD.active),
-    json_object('name', NEW.name, 'schedule', NEW.schedule, 'enabled', NEW.enabled, 'active', NEW.active),
-    datetime('now'));
-END;
-
 
 -- ###########################################################################
 -- 006_ai_insights.sql
@@ -563,6 +487,9 @@ END;
 --- Depende de: nada (entity_id é soft ref)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_insights
@@ -589,6 +516,7 @@ CREATE TABLE IF NOT EXISTS ai_insights (
   reviewed_at     TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -624,22 +552,4 @@ BEGIN UPDATE ai_insights SET deleted_at = datetime('now') WHERE id = NEW.id; END
 CREATE TRIGGER IF NOT EXISTS ai_insights_restore AFTER UPDATE OF active ON ai_insights
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_insights SET deleted_at = NULL WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_insights_audit_insert AFTER INSERT ON ai_insights
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_insights', NEW.id, 'INSERT',
-    json_object('entity_type', NEW.entity_type, 'insight_type', NEW.insight_type,
-      'title', NEW.title, 'status', NEW.status, 'source', NEW.source),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_insights_audit_update AFTER UPDATE ON ai_insights
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_insights', NEW.id, 'UPDATE',
-    json_object('status', OLD.status, 'visibility', OLD.visibility, 'active', OLD.active),
-    json_object('status', NEW.status, 'visibility', NEW.visibility, 'active', NEW.active),
-    datetime('now'));
-END;
 

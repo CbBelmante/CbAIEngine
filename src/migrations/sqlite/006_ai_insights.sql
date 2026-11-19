@@ -7,6 +7,9 @@
 --- Depende de: nada (entity_id é soft ref)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_insights
@@ -33,6 +36,7 @@ CREATE TABLE IF NOT EXISTS ai_insights (
   reviewed_at     TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -69,20 +73,3 @@ CREATE TRIGGER IF NOT EXISTS ai_insights_restore AFTER UPDATE OF active ON ai_in
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_insights SET deleted_at = NULL WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_insights_audit_insert AFTER INSERT ON ai_insights
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_insights', NEW.id, 'INSERT',
-    json_object('entity_type', NEW.entity_type, 'insight_type', NEW.insight_type,
-      'title', NEW.title, 'status', NEW.status, 'source', NEW.source),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_insights_audit_update AFTER UPDATE ON ai_insights
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_insights', NEW.id, 'UPDATE',
-    json_object('status', OLD.status, 'visibility', OLD.visibility, 'active', OLD.active),
-    json_object('status', NEW.status, 'visibility', NEW.visibility, 'active', NEW.active),
-    datetime('now'));
-END;

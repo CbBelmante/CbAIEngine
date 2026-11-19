@@ -7,6 +7,9 @@
 --- Depende de: 001_ai_config.sql (ai_providers)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_credentials
@@ -23,6 +26,7 @@ CREATE TABLE IF NOT EXISTS ai_credentials (
   rotated_at      TEXT,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -41,23 +45,6 @@ CREATE TRIGGER IF NOT EXISTS ai_credentials_updated_at AFTER UPDATE ON ai_creden
 BEGIN UPDATE ai_credentials SET updated_at = datetime('now') WHERE id = NEW.id; END;
 
 -- Audit: NÃO grava api_key (deny-list). Registra QUE mudou, sem o valor.
-CREATE TRIGGER IF NOT EXISTS ai_credentials_audit_insert AFTER INSERT ON ai_credentials
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_credentials', NEW.id, 'INSERT',
-    json_object('provider', NEW.provider, 'tenant_id', NEW.tenant_id, 'last4', NEW.last4),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_credentials_audit_update AFTER UPDATE ON ai_credentials
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_credentials', NEW.id, 'UPDATE',
-    json_object('provider', OLD.provider, 'last4', OLD.last4),
-    json_object('provider', NEW.provider, 'last4', NEW.last4),
-    datetime('now'));
-END;
-
 
 -- =============================================================================
 -- VIEW: ai_credentials_view

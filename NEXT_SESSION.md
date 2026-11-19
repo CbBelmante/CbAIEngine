@@ -5,8 +5,8 @@ funcionando, migrations SQLite prontas, zero Supabase no código.
 
 **Repo:** https://github.com/CbBelmante/CbAIEngine (privado, 5 commits na main)
 
-**Origem:** Portado do motor de IA do Volan Pulso (`_common/agent/` + `core/ai/` +
-`pulso-assistant/`). Abordagem: `cp` + `sed` mecânico + desacoplamento via `IAiDbAdapter`.
+**Origem:** Portado do motor de IA de outro projeto da casa. Abordagem: `cp` + `sed` mecânico
++ desacoplamento via `IAiDbAdapter`.
 
 ---
 
@@ -16,7 +16,7 @@ Motor de IA TypeScript que faz para inteligência artificial o que o Better Auth
 faz para autenticação: **database-first, provider-agnostic, multi-tenant**,
 com observabilidade e quotas embutidas.
 
-Segue o padrão `IDataAdapter` do BelmarsalBallet — interface mínima, implementações
+Segue o padrão `IDataAdapter` de outro projeto da casa — interface mínima, implementações
 concretas por backend, toda diferença absorvida dentro do adapter.
 
 ---
@@ -42,7 +42,7 @@ concretas por backend, toda diferença absorvida dentro do adapter.
 - Zero queries `.from().select().eq()` em todo `src/`
 - Parâmetro nomeado `dbAdapter` (não confundir com `IProviderAdapter`)
 
-### Migrations SQLite (estilo BelmarsalBallet)
+### Migrations SQLite
 - 6 migrations agrupadas por domínio + `schema.sql` + `migrate.ts` runner
 - 001: providers + config + pricing
 - 002: credentials + view
@@ -54,7 +54,7 @@ concretas por backend, toda diferença absorvida dentro do adapter.
 ### Docs
 - README.md (completo, com API surface e quick start)
 - CLAUDE.md (diretivas de trabalho)
-- CODE_STYLE_GUIDE.md + JSDOC_GUIDE.md (copiados do iPetite)
+- CODE_STYLE_GUIDE.md + JSDOC_GUIDE.md (os da casa)
 
 ### Testes
 - 7 arquivos, 120/124 passando
@@ -63,6 +63,28 @@ concretas por backend, toda diferença absorvida dentro do adapter.
 ---
 
 ## O que FALTA (próximas sessões)
+
+> ⚠️ **ESTA SEÇÃO ESTÁ DESATUALIZADA ABAIXO DA PRIORIDADE 1.** O que a sessão
+> seguinte entregou está no bloco «Entregue depois», logo acima dela.
+
+### ✅ Entregue depois
+
+| O que | Estado |
+|---|---|
+| Os 4 testes de `contextSummarization` | ✅ e com eles 189 linhas que **pareciam** asserção e não asseveravam nada — `expect(a, b)` sem matcher. Duas escondiam defeito real |
+| Migrations de Postgres | ✅ 7 arquivos em `src/migrations/postgres/`, aplicadas contra Postgres de verdade, com `pgvector`, HNSW e a função de busca |
+| Adapter real do `IAiDbAdapter` | ✅ `createKyselyAdapter` — um para Postgres e SQLite, com a diferença de busca vetorial nomeada e recusada em vez de vazia |
+| Bateria de conformidade | ✅ `tests/adapterConformance.test.ts` — **o mesmo conjunto de casos para todo adapter**, rodando contra memória e contra Postgres |
+| Build | ✅ ESM + CJS + DTS |
+
+⛔ **A BATERIA DE CONFORMIDADE É O QUE FAZ O MOLDE VALER.** Interface só promete;
+o que prova é um conjunto único de casos contra toda implementação. Sem ela,
+cada adapter novo é promessa, e a divergência aparece em produção.
+
+⚠️ **E o schema de Postgres veio do PROJETO DE ORIGEM, não do porte em SQLite:**
+o porte tinha perdido a política de espera do provedor (os três campos de
+retry), o `deleted_by` do rastro, o `cached_prompt_tokens`, o `net_request_id` e
+o pai da categoria de conhecimento.
 
 ### Prioridade 1 — Fazer funcionar end-to-end
 
@@ -81,7 +103,7 @@ concretas por backend, toda diferença absorvida dentro do adapter.
 #### Migrations Postgres
 - Versão Postgres das 6 migrations (uuid, timestamptz, jsonb, vector, RLS)
 - Mesma estrutura domain-grouped do SQLite
-- RLS policies por tabela (como no Pulso original)
+- RLS policies por tabela (como no projeto de origem)
 
 #### Testes de integração
 - Rodar Kysely adapter contra SQLite real
@@ -112,7 +134,7 @@ concretas por backend, toda diferença absorvida dentro do adapter.
 - `npx cbai migrate` → aplica pendentes (como `dbMigrate.ts` do Ballet)
 
 #### Adapter Supabase
-- Para o Pulso migrar e usar o engine como dependência
+- Para o projeto de origem migrar e usar o engine como dependência
 - Implementa `IAiDbAdapter` com Supabase client
 
 ---
@@ -131,11 +153,9 @@ concretas por backend, toda diferença absorvida dentro do adapter.
 
 ## Referências
 
-- **Plano completo:** `~/Workspaces/plano-tenantai.html`
-- **Análise técnica:** `~/Workspaces/pulso-ai-analise.html`
-- **Adapter pattern:** `~/Workspaces/BelmarsalBallet/composables/crud/useDataAdapter.ts`
-- **Migration runner:** `~/Workspaces/BelmarsalBallet/scripts/dbMigrate.ts`
-- **Better Auth config:** `~/Workspaces/BelmarsalBallet/server/utils/auth.ts`
+Fora deste repositório, na casa: o plano completo e a análise técnica do motor,
+o `IDataAdapter` que deu a forma do adapter, o runner de migrations e a
+configuração de autenticação que serviu de molde.
 
 ---
 

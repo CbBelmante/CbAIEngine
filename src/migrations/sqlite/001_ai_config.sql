@@ -6,6 +6,9 @@
 --- Depende de: nada (primeira migration do AI engine)
 -- =============================================================================
 
+-- ⚠️ A AUDITORIA É POLÍTICA DO HOST, e por isso não está aqui: nome, formato e
+-- retenção são de quem usa o motor. Gravar numa tabela que a biblioteca não
+-- declara faria o schema não aplicar sozinho.
 
 -- =============================================================================
 -- TABELA: ai_providers
@@ -20,13 +23,33 @@ CREATE TABLE IF NOT EXISTS ai_providers (
   base_url        TEXT,
   protocol        TEXT NOT NULL CHECK (protocol IN ('anthropic', 'openai-compatible')),
   enabled         INTEGER NOT NULL DEFAULT 1,
+
+  -- POLÍTICA DE ESPERA QUANDO O PROVEDOR RECUSA POR EXCESSO (HTTP 429)
+  --
+  -- Mora no PROVEDOR, e não no agente, porque o teto é da CONTA: seis agentes
+  -- apontando para a mesma casa disputam a mesma cota por minuto.
+  --
+  -- ⚠️ SÃO TETO, NÃO DURAÇÃO: o motor espera o que o provedor PEDIU, e usa
+  -- estes números só para decidir se topa esperar tanto. Lidos como duração,
+  -- quem quisesse resposta rápida os baixaria sem notar que o efeito real é
+  -- DESISTIR mais cedo.
+  retry_max_attempts             INTEGER NOT NULL DEFAULT 3,
+  retry_max_wait_interactive_ms  INTEGER NOT NULL DEFAULT 10000,
+  retry_max_wait_batch_ms        INTEGER NOT NULL DEFAULT 60000,
+
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
   updated_by      TEXT,
-  CHECK (base_url IS NOT NULL OR NOT enabled)
+  CHECK (base_url IS NOT NULL OR NOT enabled),
+  CHECK (retry_max_attempts BETWEEN 0 AND 10),
+  -- Espera negativa não existe, e zero desliga a espera daquele eixo. Cinco
+  -- minutos é onde insistir virou fila: a decisão passa a ser de quem agenda.
+  CHECK (retry_max_wait_interactive_ms BETWEEN 0 AND 300000
+         AND retry_max_wait_batch_ms BETWEEN 0 AND 300000)
 );
 
 CREATE TRIGGER IF NOT EXISTS ai_providers_updated_at AFTER UPDATE ON ai_providers
@@ -39,23 +62,6 @@ BEGIN UPDATE ai_providers SET deleted_at = datetime('now') WHERE id = NEW.id; EN
 CREATE TRIGGER IF NOT EXISTS ai_providers_restore AFTER UPDATE OF active ON ai_providers
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_providers SET deleted_at = NULL WHERE id = NEW.id; END;
-
-CREATE TRIGGER IF NOT EXISTS ai_providers_audit_insert AFTER INSERT ON ai_providers
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_providers', NEW.id, 'INSERT',
-    json_object('slug', NEW.slug, 'name', NEW.name, 'protocol', NEW.protocol),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_providers_audit_update AFTER UPDATE ON ai_providers
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_providers', NEW.id, 'UPDATE',
-    json_object('slug', OLD.slug, 'name', OLD.name, 'enabled', OLD.enabled, 'active', OLD.active),
-    json_object('slug', NEW.slug, 'name', NEW.name, 'enabled', NEW.enabled, 'active', NEW.active),
-    datetime('now'));
-END;
 
 
 -- =============================================================================
@@ -75,6 +81,7 @@ CREATE TABLE IF NOT EXISTS ai_config (
   enabled         INTEGER NOT NULL DEFAULT 1,
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -99,23 +106,6 @@ CREATE TRIGGER IF NOT EXISTS ai_config_restore AFTER UPDATE OF active ON ai_conf
   WHEN OLD.active = 0 AND NEW.active = 1
 BEGIN UPDATE ai_config SET deleted_at = NULL WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_config_audit_insert AFTER INSERT ON ai_config
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_config', NEW.id, 'INSERT',
-    json_object('agent', NEW.agent, 'provider', NEW.provider, 'model', NEW.model),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_config_audit_update AFTER UPDATE ON ai_config
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_config', NEW.id, 'UPDATE',
-    json_object('agent', OLD.agent, 'provider', OLD.provider, 'model', OLD.model, 'enabled', OLD.enabled),
-    json_object('agent', NEW.agent, 'provider', NEW.provider, 'model', NEW.model, 'enabled', NEW.enabled),
-    datetime('now'));
-END;
-
 
 -- =============================================================================
 -- TABELA: ai_model_pricing
@@ -132,6 +122,7 @@ CREATE TABLE IF NOT EXISTS ai_model_pricing (
   currency        TEXT NOT NULL DEFAULT 'USD',
   active          INTEGER NOT NULL DEFAULT 1,
   deleted_at      TEXT,
+  deleted_by      TEXT,
   created_at      TEXT DEFAULT (datetime('now')),
   updated_at      TEXT DEFAULT (datetime('now')),
   created_by      TEXT,
@@ -142,19 +133,3 @@ CREATE TABLE IF NOT EXISTS ai_model_pricing (
 CREATE TRIGGER IF NOT EXISTS ai_model_pricing_updated_at AFTER UPDATE ON ai_model_pricing
 BEGIN UPDATE ai_model_pricing SET updated_at = datetime('now') WHERE id = NEW.id; END;
 
-CREATE TRIGGER IF NOT EXISTS ai_model_pricing_audit_insert AFTER INSERT ON ai_model_pricing
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_model_pricing', NEW.id, 'INSERT',
-    json_object('provider', NEW.provider, 'model', NEW.model, 'input_per_1k', NEW.input_per_1k, 'output_per_1k', NEW.output_per_1k),
-    datetime('now'));
-END;
-
-CREATE TRIGGER IF NOT EXISTS ai_model_pricing_audit_update AFTER UPDATE ON ai_model_pricing
-BEGIN
-  INSERT INTO audit_log (id, table_name, record_id, action, old_data, new_data, created_at)
-  VALUES (lower(hex(randomblob(16))), 'ai_model_pricing', NEW.id, 'UPDATE',
-    json_object('provider', OLD.provider, 'model', OLD.model, 'input_per_1k', OLD.input_per_1k),
-    json_object('provider', NEW.provider, 'model', NEW.model, 'input_per_1k', NEW.input_per_1k),
-    datetime('now'));
-END;
