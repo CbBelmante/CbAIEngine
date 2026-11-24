@@ -255,6 +255,14 @@ npm run lint         # ESLint
 7. **PII redigido em 3 pontos** — mensagens→provider, save_memory, trace
 8. **Dois eixos ortogonais** — `active` (existe?) vs `enabled` (em uso?)
 
+## 🧾 Dívida conhecida
+
+| O que | Onde está escrito |
+|---|---|
+| **O caminho de volta da redação de PII** — a ida existe, a volta não veio na extração. Sem ela, o marcador persiste no banco e aparece na tela | [`docs/PII_RETURN_PATH.md`](docs/PII_RETURN_PATH.md) |
+
+---
+
 ## 🔮 Roadmap
 
 - [x] Core engine (loop, tools, providers, middleware)
